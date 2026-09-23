@@ -96,7 +96,65 @@ Dua keputusan turunan dari pilihan OpenZeppelin:
 
 Tidak ada variabel state, getter, atau event tambahan di `NirmalaToken.sol` di luar bawaan `ERC20`/`ERC20Permit` dari OZ.
 
-## 7. Belum diputuskan (dibahas bertahap di sesi berikutnya)
+## 7. Library — `src/libraries/`
+
+| Fungsi | Dari mana | Gunanya |
+|---|---|---|
+| `min()` | OZ `@openzeppelin/contracts/utils/math/Math.sol` | ambil nilai terkecil dari dua angka |
+| `sqrt()` | OZ `@openzeppelin/contracts/utils/math/Math.sol` | akar kuadrat integer |
+
+Keduanya langsung di-import dari OZ, bukan ditulis ulang — `Math.sol`/`SafeMath.sol` ala Uniswap V2 tidak dibuat sebagai file kita sendiri (`SafeMath` juga berlebihan karena Solidity 0.8.x otomatis revert kalau overflow/underflow).
+
+Satu-satunya file baru di `src/libraries/`: **`UQ112x112.sol`** — fixed-point encoding buat akumulasi harga TWAP (PRD bagian 5), tidak ada padanan di OZ. Isinya belum dirancang.
+
+`NirmalaLibrary.sol` (setara `UniswapV2Library`: `getAmountOut`, `getAmountIn`, `quote`, `sortTokens`, `pairFor`) juga masih perlu, tapi dibahas belakangan — dipakai `NirmalaRouter.sol` buat estimasi swap dan hitung alamat pair.
+
+## 8. Core Contract — NirmalaPair.sol
+
+`NirmalaPair.sol` memegang custody dana beneran — reserve token0/token1 — dan menjalankan matematika swap/mint/burn LP. `NirmalaPair is NirmalaToken, ReentrancyGuard`.
+
+Empat keputusan desain (semua modernisasi dari referensi Uniswap V2 0.5.16, konsisten sama pola "pakai OZ kalau ada yang setara" yang udah kita jalanin di `NirmalaToken`/`Math`):
+- **Transfer token internal pakai OZ `SafeERC20`**, bukan fungsi `_safeTransfer` manual — konsisten sama keputusan `TransferHelper.sol` yang udah dihapus total.
+- **Reentrancy guard pakai OZ `ReentrancyGuard`** (`nonReentrant`), bukan modifier `lock` custom.
+- **`factory` disimpan `immutable`**, di-set di constructor lewat `msg.sender` (lebih hemat gas dari mutable state var; Uniswap V2 pakai mutable cuma karena Solidity 0.5.16 belum ada keyword `immutable`).
+- **`initialize()` ada guard eksplisit** `token0 == address(0)` selain cek `msg.sender == factory`, supaya nggak bisa di-re-init walau ada bug di Factory suatu saat.
+
+Constructor kosong — `token0`/`token1` BELUM di-set di constructor, karena `NirmalaFactory` deploy `NirmalaPair` pakai `CREATE2` tanpa constructor argument (alasan yang sama kayak `name`/`symbol` hardcode di `NirmalaToken`: init code hash harus konstan), lalu manggil `initialize(token0, token1)` sekali tepat setelah deploy.
+
+| Fungsi | Kegunaan |
+|---|---|
+| `getReserves()` | baca `reserve0`, `reserve1`, `blockTimestampLast` — dipacking jadi 1 storage slot (`uint112`/`uint112`/`uint32`) buat hemat gas |
+| `initialize()` | dipanggil sekali oleh `NirmalaFactory` tepat setelah deploy, nge-set `token0`/`token1` pasangan pair ini. Revert kalau bukan factory yang manggil, atau kalau udah pernah di-set |
+| `_update()` | update `reserve0`/`reserve1` berdasarkan saldo token aktual, dipanggil di akhir `mint`/`burn`/`swap`/`sync`. Tempat akumulator TWAP (`price0CumulativeLast`/`price1CumulativeLast`) di-update pakai `UQ112x112`, dengan overflow yang disengaja (`unchecked`, sesuai catatan Tech Stack) |
+| `mint()` | user (lewat Router) transfer token0+token1 ke pair DULU, baru panggil `mint()`. Hitung selisih saldo aktual vs reserve tercatat → jumlah yang baru masuk → dikonversi jadi LP token buat `to`. Liquidity pertama kali: `MINIMUM_LIQUIDITY` (1000 wei LP) dikunci ke `address(1)` sebagai fondasi pool (cegah share-inflation attack) |
+| `burn()` | kebalikan `mint()` — user transfer LP token ke pair DULU, baru panggil `burn()`. Burn LP token yang ada di saldo pair sendiri, hitung proporsi token0/token1 yang berhak didapat `to`, transfer keluar |
+| `swap()` | lihat penjelasan di bawah |
+| `skim()` | siapa aja boleh panggil — transfer kelebihan saldo token (di atas reserve tercatat) ke alamat `to` pilihan pemanggil. Buat "bersihin" token yang nyasar kekirim langsung ke pair tanpa lewat `mint`/`sync` |
+| `sync()` | paksa `reserve0`/`reserve1` disamain ke saldo token aktual sekarang. Buat recovery kalau reserve ke-desync dari saldo asli |
+
+### Mekanisme `swap()`
+
+1. **Optimistic transfer** — pair transfer DULU `amount0Out`/`amount1Out` ke `to` (salah satu boleh 0, tapi nggak boleh dua-duanya 0), sebelum tau apakah pembayarannya cukup.
+2. **Flash swap callback (opsional)** — kalau ada `data` dikirim, pair manggil balik `to` (kontrak yang implement `INirmalaCallee`) SEBELUM ngecek pembayaran — di sinilah user bisa "pinjam dulu, bayar belakangan" dalam 1 transaksi, sesuai keputusan flash swap di bagian 5.
+3. **Hitung amountIn** — pair baca saldo token sekarang (setelah transfer + callback), bandingin sama `reserve - amountOut`. Selisihnya adalah `amountIn`. Kalau kedua sisi 0 → revert (nggak ada yang bayar).
+4. **Cek K-invariant** — ini yang beneran nge-enforce swap fee 0.30%: hasil kali reserve SETELAH swap (dikurangi fee 0.3% dari yang masuk) harus tetap ≥ hasil kali SEBELUM swap. Ini yang bikin harga bergerak sesuai kurva `x*y=k` dan mencegah drain pool tanpa bayar cukup.
+5. Ada pengecekan `to != token0 && to != token1` — cegah kirim ke alamat token itu sendiri.
+
+### Trust assumption
+
+- `mint()`/`burn()` pakai pola **transfer dulu, baru panggil** — pair nggak narik token dari caller. Kalau dipanggil langsung (bukan lewat `NirmalaRouter`), user wajib transfer manual dulu, atau dana bisa nyangkut/ketuker transaksi lain di block yang sama (makanya butuh `nonReentrant`).
+- `skim()` permissionless dan `to`-nya bebas dipilih pemanggil — siapa pun yang notice dana nyasar di pair bisa "duluan" nge-skim ke alamat manapun.
+
+### Dependency baru
+
+`src/interfaces/INirmalaCallee.sol` — interface callback flash swap, dipanggil `swap()` kalau `data.length > 0`. Isinya cuma 1 fungsi (`nirmalaCall`), harus di-implement contract yang mau nerima flash swap (bukan wallet biasa) — kalau `to` bukan contract yang implement ini atau `data` kosong, callback ini otomatis di-skip dan swap jalan normal biasa.
+
+| Fungsi | Kegunaan |
+|---|---|
+| `nirmalaCall()` | dipanggil `NirmalaPair.swap()` di tengah proses, setelah token dikirim tapi sebelum pembayaran dicek — kasih kesempatan si penerima "pakai dulu" token yang dipinjam sebelum bayar balik di transaksi yang sama |
+
+## 9. Belum diputuskan (dibahas bertahap di sesi berikutnya)
 
 - Chain target final (BNB testnet vs Base Sepolia) + `evm_version` yang cocok
 - Dukungan token fee-on-transfer
+- Isi `NirmalaLibrary.sol`
