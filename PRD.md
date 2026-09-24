@@ -107,7 +107,7 @@ Keduanya langsung di-import dari OZ, bukan ditulis ulang — `Math.sol`/`SafeMat
 
 Satu-satunya file baru di `src/libraries/`: **`UQ112x112.sol`** — fixed-point encoding buat akumulasi harga TWAP (PRD bagian 5), tidak ada padanan di OZ. Isinya belum dirancang.
 
-`NirmalaLibrary.sol` (setara `UniswapV2Library`: `getAmountOut`, `getAmountIn`, `quote`, `sortTokens`, `pairFor`) juga masih perlu, tapi dibahas belakangan — dipakai `NirmalaRouter.sol` buat estimasi swap dan hitung alamat pair.
+`NirmalaLibrary.sol` (setara `UniswapV2Library`: `getAmountOut`, `getAmountIn`, `quote`, `sortTokens`, `pairFor`) juga masih perlu, dipakai `NirmalaRouter.sol` buat estimasi swap dan hitung alamat pair — desain lengkap di bagian 10.
 
 ## 8. Core Contract — NirmalaPair.sol
 
@@ -153,8 +153,59 @@ Constructor kosong — `token0`/`token1` BELUM di-set di constructor, karena `Ni
 |---|---|
 | `nirmalaCall()` | dipanggil `NirmalaPair.swap()` di tengah proses, setelah token dikirim tapi sebelum pembayaran dicek — kasih kesempatan si penerima "pakai dulu" token yang dipinjam sebelum bayar balik di transaksi yang sama |
 
-## 9. Belum diputuskan (dibahas bertahap di sesi berikutnya)
+## 9. Core Contract — NirmalaFactory.sol
+
+`NirmalaFactory.sol` bertanggung jawab deploy `NirmalaPair` baru lewat `CREATE2` dan nyatet semua pair yang udah dibuat. Permissionless — siapa aja boleh manggil `createPair()`, konsisten sama keputusan "tidak ada admin/owner" di bagian 5 (tidak ada fee, jadi tidak ada alasan butuh akses kontrol di factory).
+
+State:
+- `mapping(address => mapping(address => address)) public getPair` — lookup pair address dari dua token, dua arah (`getPair[tokenA][tokenB]` dan `getPair[tokenB][tokenA]` sama-sama nunjuk ke pair yang sama)
+- `address[] public allPairs` — daftar semua pair yang pernah dibuat, urut sesuai waktu deploy
+
+| Fungsi | Kegunaan |
+|---|---|
+| `allPairsLength()` | return jumlah pair yang udah dibuat (`allPairs.length`) |
+| `createPair(address tokenA, address tokenB)` | bikin pair baru buat pasangan token, return `address pair` |
+
+### Mekanisme `createPair()`
+
+1. **Cek identical address** — `require(tokenA != tokenB)`. Ini WAJIB di paling awal, sebelum sorting — kalau di-skip, `createPair(tokenX, tokenX)` bisa lolos (hasil sorting `token0 == token1 == tokenX`, keduanya bukan `address(0)`, dan `getPair[tokenX][tokenX]` awalnya kosong sehingga cek "belum pernah dibuat" juga lolos), yang bikin pair token vs dirinya sendiri ke-deploy.
+2. **Sort token** — `(token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA)`, biar alamat pair yang dihasilin `CREATE2` konsisten terlepas urutan argumen yang dipanggil caller.
+3. **Cek zero address** — `require(token0 != address(0))`. Cukup cek `token0` aja (yang lebih kecil setelah sorting) — kalau `token0` bukan nol, otomatis `token1` juga bukan nol karena udah lolos cek identical address di langkah 1.
+4. **Cek pair belum ada** — `require(getPair[token0][token1] == address(0))`.
+5. **Deploy via CREATE2** — `type(NirmalaPair).creationCode`, tanpa constructor argument (konsisten sama keputusan constructor kosong di `NirmalaPair`, lihat bagian 8), salt = `keccak256(abi.encodePacked(token0, token1))`.
+6. **Initialize** — panggil `NirmalaPair(pair).initialize(token0, token1)` sekali, tepat setelah deploy.
+7. **Catat ke `getPair`** — set dua arah, `getPair[token0][token1] = pair` dan `getPair[token1][token0] = pair`.
+8. **Push ke `allPairs`** dan **emit `PairCreated`**.
+
+### Event
+
+`event PairCreated(address indexed token0, address indexed token1, address pair, uint256 pairIndex)` — dipakai indexer/subgraph nangkep pair baru; `pairIndex` adalah `allPairs.length` setelah push (posisi pair di array).
+
+## 10. Library — NirmalaLibrary.sol
+
+Setara `UniswapV2Library` — kumpulan fungsi murni (`internal`, di-inline ke pemanggil, tidak di-deploy terpisah) buat estimasi swap dan hitung alamat pair tanpa perlu query storage Factory. Dipakai `NirmalaRouter.sol`.
+
+| Fungsi | Kegunaan |
+|---|---|
+| `sortTokens(tokenA, tokenB)` | urutin dua alamat token supaya `token0 < token1`, konsisten sama logic sorting di `NirmalaFactory.createPair()`. Revert kalau identical atau zero address |
+| `pairFor(factory, tokenA, tokenB)` | hitung alamat `NirmalaPair` langsung dari rumus CREATE2 (`keccak256(0xff, factory, salt, initCodeHash)`), tanpa external call ke Factory — makanya lebih hemat gas dipanggil berkali-kali di hot path Router |
+| `getReserves(factory, tokenA, tokenB)` | ambil reserve pair, dikembalikan **sesuai urutan `tokenA`/`tokenB` yang caller kasih** (bukan urutan sorted `token0`/`token1`) — biar Router nggak perlu inget-inget urutan sort sendiri di tiap pemanggilan |
+| `quote(amountA, reserveA, reserveB)` | hitung `amountB` yang proporsional sama rasio reserve pool saat ini — dipakai `addLiquidity` di Router biar rasio token yang dimasukin selalu ngikutin rasio pool |
+| `getAmountOut(amountIn, reserveIn, reserveOut)` | estimasi berapa token keluar kalau masukin `amountIn`, udah kepotong fee 0.30% (`amountIn * 997 / 1000`, sama kayak `NirmalaPair.swap()`) |
+| `getAmountIn(amountOut, reserveIn, reserveOut)` | kebalikannya — estimasi berapa token yang perlu dimasukin buat dapet `amountOut` yang diinginkan, fee 0.30% juga |
+| `getAmountsOut(factory, amountIn, path)` | loop `getAmountOut` sepanjang `path` (array alamat token, multi-hop), hasilnya array `amounts` per-hop |
+| `getAmountsIn(factory, amountOut, path)` | kebalikannya, loop mundur dari akhir `path` |
+
+**Keputusan desain:**
+- **Init code hash di-hardcode** sebagai `bytes32 constant`, bukan dihitung ulang tiap panggil lewat `keccak256(type(NirmalaPair).creationCode)`. Alasan: `pairFor()` dipanggil berkali-kali per transaksi (tiap hop di `getAmountsOut`/`getAmountsIn`), dan ngitung hash dari seluruh creation code kontrak tiap kali itu mahal. Risiko hash jadi stale kalau `NirmalaPair.sol` berubah ditangkep lewat test yang assert `PAIR_INIT_CODE_HASH == keccak256(type(NirmalaPair).creationCode)` — kalau kontrak berubah, test gagal duluan sebelum sempat ke-deploy dengan hash yang salah.
+- **`getReserves()` return sesuai urutan input caller**, bukan sorted — beda dari sekilas baca `UniswapV2Library` yang juga gitu (sorting cuma dipakai internal buat nyari alamat pair via `pairFor`).
+- **`NirmalaFactory.createPair()` TIDAK di-refactor** manggil `NirmalaLibrary.sortTokens()` — logic sorting-nya identik tapi dibiarkan terpisah (tidak menyentuh kode Factory yang udah dites), biar perubahan di `NirmalaLibrary.sol` nggak berisiko ke kontrak yang custody dana.
+
+### Trust assumption
+
+`getReserves()`/`pairFor()` nggak ngecek pair-nya udah pernah dibuat via Factory apa belum — kalau pair belum ada, `getReserves()` bakal manggil alamat tanpa kode dan revert. `NirmalaRouter.sol` (belum ditulis) yang nanti wajib mastiin `createPair()` dipanggil dulu sebelum nyoba interaksi apapun ke pair itu.
+
+## 11. Belum diputuskan (dibahas bertahap di sesi berikutnya)
 
 - Chain target final (BNB testnet vs Base Sepolia) + `evm_version` yang cocok
 - Dukungan token fee-on-transfer
-- Isi `NirmalaLibrary.sol`
