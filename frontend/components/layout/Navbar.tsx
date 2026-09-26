@@ -23,8 +23,15 @@ const Navbar = () => {
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [mounted, setMounted] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
     const accountMenuRef = useRef<HTMLDivElement>(null)
+
+    // wagmi selalu balikin isConnected=false pas SSR, lalu auto-reconnect di client bisa selesai
+    // sebelum hydration kelar — beda HTML server vs client bikin hydration mismatch kalau nggak digate.
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     // Menutup dropdown saat klik di luar
     useEffect(() => {
@@ -158,7 +165,7 @@ const Navbar = () => {
                             </Link>
 
                             {/* Tombol Connect Wallet / Account */}
-                            {isConnected && isWrongNetwork ? (
+                            {mounted && isConnected && isWrongNetwork ? (
                                 <button
                                     type="button"
                                     onClick={switchToCorrectNetwork}
@@ -167,7 +174,7 @@ const Navbar = () => {
                                 >
                                     {isSwitching ? 'Switching...' : 'Wrong Network'}
                                 </button>
-                            ) : isConnected && address ? (
+                            ) : mounted && isConnected && address ? (
                                 <div className="relative shrink-0" ref={accountMenuRef}>
                                     <button
                                         type="button"
