@@ -31,6 +31,8 @@ interface TxActionButtonProps {
     successContent: React.ReactNode
     approvalSteps: ApprovalStep[]
     submit: SubmitAction
+    // 'accent' dipakai Swap di /trade biar beda dari tombol Approve — /liquidity/new nggak pass ini, tetap biru.
+    submitVariant?: 'primary' | 'accent'
 }
 
 // Rantai tombol Connect Wallet -> Switch Network -> Approve (tiap step, urut) -> Submit,
@@ -45,6 +47,7 @@ export const TxActionButton: React.FC<TxActionButtonProps> = ({
     successContent,
     approvalSteps,
     submit,
+    submitVariant = 'primary',
 }) => {
     if (isSuccess) return <>{successContent}</>
 
@@ -95,7 +98,7 @@ export const TxActionButton: React.FC<TxActionButtonProps> = ({
             type="button"
             disabled={submit.disabled || submit.isPending || submit.isConfirming}
             onClick={submit.onSubmit}
-            className={`btn-color w-full text-white font-semibold ${sizeClassName} transition-all active:scale-[0.99] disabled:opacity-40`}
+            className={`${submitVariant === 'accent' ? 'btn-accent' : 'btn-color'} w-full text-white font-semibold ${sizeClassName} transition-all active:scale-[0.99] disabled:opacity-40`}
         >
             {submit.isPending ? 'Confirm in wallet...' : submit.isConfirming ? submit.confirmingLabel : submit.idleLabel}
         </button>

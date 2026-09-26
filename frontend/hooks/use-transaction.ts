@@ -47,5 +47,6 @@ export function useTransaction(toastId: string, messages: UseTransactionMessages
         isConfirming: stage === 'confirming',
         isSuccess: mutation.isSuccess,
         error: mutation.error,
+        reset: mutation.reset,
     }
 }

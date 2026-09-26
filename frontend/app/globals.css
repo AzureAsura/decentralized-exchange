@@ -92,6 +92,16 @@
     box-shadow: 0 6px 32px rgba(59, 130, 246, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
+  .btn-accent {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.85), rgba(234, 88, 12, 0.75));
+    box-shadow: 0 4px 24px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  .btn-accent:hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 1), rgba(234, 88, 12, 0.9));
+    box-shadow: 0 6px 32px rgba(245, 158, 11, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
   .card-light {
     @apply bg-white/15 backdrop-blur-xl hover:bg-white/20 transition-all duration-200;
     box-shadow:

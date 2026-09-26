@@ -1,7 +1,7 @@
 import React from 'react'
 import { ChevronDown, Info } from 'lucide-react'
 import type { Asset } from '@/lib/contracts'
-import { formatAmount } from '@/lib/format'
+import { SwapDetailRows } from '@/components/trade/SwapDetailRows'
 
 interface SwapDetailsProps {
     isDetailsOpen: boolean
@@ -46,26 +46,16 @@ export const SwapDetails: React.FC<SwapDetailsProps> = ({
 
         {isDetailsOpen && (
             <div className="mt-3 md:mt-[0.6vw] pt-3 md:pt-[0.6vw] border-t border-white/10 flex flex-col gap-2 md:gap-[0.4vw] text-xs md:text-[0.8vw]">
-                <div className="flex justify-between items-center text-gray-400">
-                    <span>Expected Output</span>
-                    <span className="text-white font-semibold">{buyDisplay} {buyAsset.symbol}</span>
-                </div>
-                <div className="flex justify-between items-center text-gray-400">
-                    <span>Price Impact</span>
-                    <span className={priceImpact !== undefined && priceImpact > 3 ? 'text-red-400 font-medium' : 'text-emerald-400 font-medium'}>
-                        {priceImpact !== undefined ? `${priceImpact.toFixed(2)}%` : '—'}
-                    </span>
-                </div>
-                <div className="flex justify-between items-center text-gray-400">
-                    <span>{activeSide === 'sell' ? `Minimum received (${(slippageBps / 100).toFixed(2)}% slippage)` : `Maximum sent (${(slippageBps / 100).toFixed(2)}% slippage)`}</span>
-                    <span className="text-gray-300">
-                        {activeSide === 'sell' && amountOutMin !== undefined
-                            ? `${formatAmount(amountOutMin)} ${buyAsset.symbol}`
-                            : activeSide === 'buy' && amountInMax !== undefined
-                                ? `${formatAmount(amountInMax)} ${sellAsset.symbol}`
-                                : '—'}
-                    </span>
-                </div>
+                <SwapDetailRows
+                    sellAsset={sellAsset}
+                    buyAsset={buyAsset}
+                    buyDisplay={buyDisplay}
+                    priceImpact={priceImpact}
+                    activeSide={activeSide}
+                    slippageBps={slippageBps}
+                    amountOutMin={amountOutMin}
+                    amountInMax={amountInMax}
+                />
             </div>
         )}
     </div>

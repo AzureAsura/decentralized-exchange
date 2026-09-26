@@ -9,11 +9,16 @@ import { SettingsModal } from '@/components/shared/SettingsModal'
 import { TxActionButton } from '@/components/shared/TxActionButton'
 import { TokenInputCard } from '@/components/trade/TokenInputCard'
 import { SwapDetails } from '@/components/trade/SwapDetails'
+import { ApproveStatusModal } from '@/components/trade/ApproveStatusModal'
+import { SwapReviewModal, type SwapModalPhase } from '@/components/trade/SwapReviewModal'
+import type { TxFlowStatus } from '@/components/trade/TxFlowAnimation'
 
 export const SwapCard: React.FC = () => {
     const { isConnected } = useAccount()
     const { isWrongNetwork, isSwitching, switchToCorrectNetwork } = useCorrectNetwork()
     const [isDetailsOpen, setIsDetailsOpen] = useState(true)
+    const [isApproveModalOpen, setIsApproveModalOpen] = useState(false)
+    const [isSwapModalOpen, setIsSwapModalOpen] = useState(false)
 
     const {
         sellAsset,
@@ -44,6 +49,26 @@ export const SwapCard: React.FC = () => {
         approveTx,
         swapTx,
     } = useSwap()
+
+    const handleApproveClick = () => {
+        approveTx.reset()
+        setIsApproveModalOpen(true)
+        handleApprove()
+    }
+
+    const handleSwapClick = () => {
+        swapTx.reset()
+        setIsSwapModalOpen(true)
+    }
+
+    const approveStatus: TxFlowStatus = approveTx.error ? 'error' : approveTx.isSuccess ? 'success' : 'sending'
+    const swapPhase: SwapModalPhase = swapTx.error
+        ? 'error'
+        : swapTx.isSuccess
+            ? 'success'
+            : swapTx.isPending || swapTx.isConfirming
+                ? 'sending'
+                : 'review'
 
     return (
         <div className="relative min-h-screen w-full bg-transparent text-white flex flex-col items-center justify-center overflow-hidden font-sans select-none p-4 md:p-[2vw]">
@@ -127,13 +152,8 @@ export const SwapCard: React.FC = () => {
                     />
                 )}
 
-                {/* STATUS */}
-                {(approveTx.error || swapTx.error) && (
-                    <p className="text-red-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.5vw]">
-                        Transaction failed — please try again.
-                    </p>
-                )}
-                {!approveTx.error && !swapTx.error && quoteError && (
+                {/* STATUS — error approve/swap sekarang ditampilkan di dalam popup masing-masing */}
+                {quoteError && (
                     <p className="text-red-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.5vw]">
                         Insufficient liquidity for this trade — try a smaller amount.
                     </p>
@@ -160,7 +180,7 @@ export const SwapCard: React.FC = () => {
                                 disabled: !hasEnteredValues,
                                 isPending: approveTx.isPending,
                                 isConfirming: approveTx.isConfirming,
-                                onApprove: handleApprove,
+                                onApprove: handleApproveClick,
                             },
                         ]}
                         submit={{
@@ -169,11 +189,37 @@ export const SwapCard: React.FC = () => {
                             isConfirming: swapTx.isConfirming,
                             confirmingLabel: 'Swapping...',
                             idleLabel: quoteError ? 'Insufficient liquidity' : hasEnteredValues ? 'Swap' : 'Enter an amount',
-                            onSubmit: handleSwap,
+                            onSubmit: handleSwapClick,
                         }}
+                        submitVariant="accent"
                     />
                 </div>
             </div>
+
+            <ApproveStatusModal
+                open={isApproveModalOpen}
+                onOpenChange={setIsApproveModalOpen}
+                symbol={sellAsset.symbol}
+                status={approveStatus}
+                onRetry={handleApprove}
+            />
+
+            <SwapReviewModal
+                open={isSwapModalOpen}
+                onOpenChange={setIsSwapModalOpen}
+                phase={swapPhase}
+                sellAsset={sellAsset}
+                buyAsset={buyAsset}
+                sellDisplay={sellDisplay}
+                buyDisplay={buyDisplay}
+                rate={rate}
+                priceImpact={priceImpact}
+                activeSide={activeSide}
+                slippageBps={slippageBps}
+                amountOutMin={amountOutMin}
+                amountInMax={amountInMax}
+                onConfirm={handleSwap}
+            />
         </div>
     )
 }
