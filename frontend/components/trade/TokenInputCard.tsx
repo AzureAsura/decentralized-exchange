@@ -6,14 +6,6 @@ import { TokenSelectButton } from '@/components/shared/TokenSelectButton'
 
 const MAX_AMOUNT_LENGTH = 16
 
-// Font makin kecil makin banyak digit, biar angka sepanjang 16 karakter tetap muat 1 baris.
-const getAmountFontSizeClass = (length: number) => {
-    if (length > 12) return 'text-lg md:text-[1.3vw]'
-    if (length > 9) return 'text-xl md:text-[1.7vw]'
-    if (length > 6) return 'text-2xl md:text-[2.2vw]'
-    return 'text-3xl md:text-[2.8vw]'
-}
-
 interface TokenInputCardProps {
     variant: 'sell' | 'buy'
     label: string
@@ -59,7 +51,7 @@ export const TokenInputCard: React.FC<TokenInputCardProps> = ({
                     onFocus={onFocus}
                     placeholder="0.0"
                     maxLength={MAX_AMOUNT_LENGTH}
-                    className={`bg-transparent ${getAmountFontSizeClass(value.length)} font-bold outline-none w-full tracking-tight leading-none transition-colors placeholder-gray-600 ${isActive ? 'text-white' : 'text-gray-500'
+                    className={`bg-transparent text-3xl md:text-[2.8vw] font-bold outline-none w-full tracking-tight leading-none transition-colors placeholder-gray-600 ${isActive ? 'text-white' : 'text-gray-500'
                         }`}
                 />
             </div>
