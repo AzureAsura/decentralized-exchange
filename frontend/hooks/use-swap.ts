@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { keepPreviousData } from '@tanstack/react-query'
 import { erc20Abi, formatUnits } from 'viem'
 import { useAccount, useReadContract } from 'wagmi'
 import { ASSETS, ROUTER_ADDRESS, routerAbi, type Asset } from '@/lib/contracts'
@@ -45,7 +46,7 @@ export function useSwap() {
         abi: routerAbi,
         functionName: 'getAmountsOut',
         args: typedSellAmount !== undefined ? [typedSellAmount, path] : undefined,
-        query: { enabled: activeSide === 'sell' && typedSellAmount !== undefined, retry: false },
+        query: { enabled: activeSide === 'sell' && typedSellAmount !== undefined, retry: false, placeholderData: keepPreviousData },
     })
 
     const {
@@ -57,7 +58,7 @@ export function useSwap() {
         abi: routerAbi,
         functionName: 'getAmountsIn',
         args: typedBuyAmount !== undefined ? [typedBuyAmount, path] : undefined,
-        query: { enabled: activeSide === 'buy' && typedBuyAmount !== undefined, retry: false },
+        query: { enabled: activeSide === 'buy' && typedBuyAmount !== undefined, retry: false, placeholderData: keepPreviousData },
     })
 
     const quoteError = activeSide === 'sell' ? amountsOutError : amountsInError

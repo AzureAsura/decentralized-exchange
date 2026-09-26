@@ -32,7 +32,7 @@ export const SwapDetails: React.FC<SwapDetailsProps> = ({
     amountOutMin,
     amountInMax,
 }) => (
-    <div className="mt-2 md:mt-[0.5vw] rounded-2xl md:rounded-[1.2vw] card p-3 md:p-[0.8vw] border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className={`mt-2 md:mt-[0.5vw] rounded-2xl md:rounded-[1.2vw] card p-3 md:p-[0.8vw] border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200 transition-opacity ${isQuoting ? 'opacity-60' : 'opacity-100'}`}>
         <div
             onClick={onToggleDetails}
             className="flex items-center justify-between cursor-pointer text-xs md:text-[0.85vw] text-gray-300 font-medium"
