@@ -7,10 +7,10 @@ import { toast } from 'sonner'
 import { erc20Abi, parseEther } from 'viem'
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { ROUTER_ADDRESS, routerAbi, TEST_TOKENS, ASSETS, NATIVE_BNB, type Asset } from '@/lib/contracts'
-import { ConnectWalletModal } from '@/components/ConnectWalletModal'
+import { ConnectWalletModal } from '@/components/shared/ConnectWalletModal'
 import { useCorrectNetwork } from '@/hooks/use-correct-network'
-import { TokenIcon } from '@/components/TokenIcon'
-import { AssetSelectModal } from '@/components/AssetSelectModal'
+import { TokenIcon } from '@/components/shared/TokenIcon'
+import { AssetSelectModal } from '@/components/shared/AssetSelectModal'
 
 const safeParseEther = (value: string): bigint | undefined => {
   if (!value || Number.isNaN(Number(value)) || Number(value) <= 0) return undefined

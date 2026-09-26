@@ -3,7 +3,7 @@
 import { ArrowLeft, Plus } from 'lucide-react'
 import Link from 'next/link'
 import React, { useState } from 'react'
-import { TokenIcon } from '@/components/TokenIcon'
+import { TokenIcon } from '@/components/shared/TokenIcon'
 import type { Pair } from '@/lib/pairs'
 
 const parseNumber = (value: string) => parseFloat(value.replace(/,/g, '')) || 0

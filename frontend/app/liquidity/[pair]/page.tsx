@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getPairBySlug } from '@/lib/pairs'
-import { PairLiquidityView } from '@/components/PairLiquidityView'
+import { PairLiquidityView } from '@/components/liquidity/PairLiquidityView'
 
 export default async function PairLiquidityPage({
   params,

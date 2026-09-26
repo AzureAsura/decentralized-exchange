@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { formatUnits } from 'viem'
 import { usePools } from '@/hooks/use-pools'
-import { TokenIcon } from '@/components/TokenIcon'
+import { TokenIcon } from '@/components/shared/TokenIcon'
 
 const formatAmount = (value: bigint) =>
   Number(formatUnits(value, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 })

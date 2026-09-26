@@ -2,8 +2,8 @@
 import { ArrowDown } from 'lucide-react'
 import React, { useState } from 'react'
 import { useAccount } from 'wagmi'
-import { TokenSelectModal } from '@/components/TokenSelectModal'
-import { ConnectWalletModal } from '@/components/ConnectWalletModal'
+import { TokenSelectModal } from '@/components/shared/TokenSelectModal'
+import { ConnectWalletModal } from '@/components/shared/ConnectWalletModal'
 import Link from 'next/link'
 
 const Page = () => {

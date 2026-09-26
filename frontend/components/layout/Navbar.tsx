@@ -8,8 +8,8 @@ import { useAccount, useBalance, useDisconnect } from 'wagmi'
 import { formatUnits } from 'viem'
 import { toast } from 'sonner'
 import { Copy, Check, Menu, X } from 'lucide-react'
-import { ConnectWalletModal } from '@/components/ConnectWalletModal'
-import { SettingsModal } from '@/components/SettingsModal'
+import { ConnectWalletModal } from '@/components/shared/ConnectWalletModal'
+import { SettingsModal } from '@/components/shared/SettingsModal'
 import { useCorrectNetwork } from '@/hooks/use-correct-network'
 
 const truncateAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`

@@ -16,7 +16,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer'
-import { TokenIcon } from '@/components/TokenIcon'
+import { TokenIcon } from '@/components/shared/TokenIcon'
 import type { Asset } from '@/lib/contracts'
 
 interface AssetSelectModalProps {
