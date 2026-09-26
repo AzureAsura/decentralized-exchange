@@ -1,0 +1,108 @@
+'use client'
+import React from 'react'
+import Link from 'next/link'
+import { Plus } from 'lucide-react'
+import { formatUnits } from 'viem'
+import { usePools } from '@/hooks/use-pools'
+import { TokenIcon } from '@/components/TokenIcon'
+
+const formatAmount = (value: bigint) =>
+  Number(formatUnits(value, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 })
+
+const LiquidityPage = () => {
+  const { pools, isLoading } = usePools()
+
+  return (
+    <div className="relative min-h-screen w-full bg-transparent text-white flex flex-col items-center overflow-hidden font-sans select-none p-4 md:p-[2vw]">
+
+      {/* JUDUL UTAMA */}
+      <h1 className="text-3xl md:text-[4.2vw] font-[550] tracking-[-0.03em] text-[#E0E0E0] mb-6 md:mb-[2vw] z-10 text-center drop-shadow-md mt-6 md:mt-[3vw]">
+        Provide liquidity, earn fees.
+      </h1>
+
+      {/* CREATE POOL LINK */}
+      <div className="relative z-10 w-full max-w-[420px] md:max-w-none md:w-[48vw] md:min-w-[520px] flex justify-end mb-3 md:mb-[0.8vw]">
+        <Link
+          href="/liquidity/new"
+          className="btn-color flex items-center gap-1.5 md:gap-[0.4vw] text-white font-semibold text-xs md:text-sm py-2 px-4 rounded-xl transition-all active:scale-95"
+        >
+          <Plus className="w-4 h-4" />
+          Add Liquidity
+        </Link>
+      </div>
+
+      {/* CONTAINER UTAMA CARD */}
+      <div className="card relative z-10 w-full max-w-[420px] md:max-w-none md:w-[48vw] md:min-w-[520px] rounded-3xl md:rounded-[1.6vw] p-2 md:p-[0.55vw] transition-all duration-300 overflow-hidden">
+
+        {/* WRAPPER SCROLL HORIZONTAL (Untuk Mobile/Tablet) */}
+        <div className="w-full overflow-x-auto scrollbar-none">
+          <div className="min-w-[520px] md:min-w-full flex flex-col gap-1.5 md:gap-[0.4vw]">
+
+            {/* HEADER TABEL */}
+            <div className="grid grid-cols-[2fr_1.5fr_1.5fr] items-center px-4 md:px-[1.4vw] py-2 md:py-[0.6vw] text-gray-400 text-xs md:text-[0.85vw] font-medium">
+              <span>Pool</span>
+              <span className="text-right">Reserves</span>
+              <span className="text-right">Price</span>
+            </div>
+
+            {/* ROWS / ISI TABEL */}
+            {pools.map((pool) => (
+              <div
+                key={pool.address}
+                className="card grid grid-cols-[2fr_1.5fr_1.5fr] items-center rounded-2xl md:rounded-[1.2vw] px-4 md:px-[1.4vw] py-3 md:py-[0.9vw] border border-transparent"
+              >
+                {/* PAIR */}
+                <div className="flex items-center gap-3 md:gap-[0.7vw]">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 md:w-[2vw] md:h-[2vw] rounded-full bg-white/10 flex items-center justify-center ring-2 ring-[#0B0E17] overflow-hidden">
+                      <TokenIcon symbol={pool.symbol0} className="w-8 h-8 md:w-[2vw] md:h-[2vw]" />
+                    </div>
+                    <div className="w-8 h-8 md:w-[2vw] md:h-[2vw] rounded-full bg-white/10 flex items-center justify-center ring-2 ring-[#0B0E17] overflow-hidden -ml-2.5 md:-ml-[0.7vw]">
+                      <TokenIcon symbol={pool.symbol1} className="w-8 h-8 md:w-[2vw] md:h-[2vw]" />
+                    </div>
+                  </div>
+                  <span className="font-semibold text-sm md:text-[1.05vw] tracking-tight text-white">
+                    {pool.symbol0} / {pool.symbol1}
+                  </span>
+                </div>
+
+                {/* RESERVES */}
+                <div className="text-xs md:text-[0.95vw] text-gray-300 text-right font-medium">
+                  {formatAmount(pool.reserve0)} {pool.symbol0} · {formatAmount(pool.reserve1)} {pool.symbol1}
+                </div>
+
+                {/* PRICE */}
+                <div className="text-xs md:text-[0.95vw] text-gray-300 text-right font-medium">
+                  {pool.reserve0 > BigInt(0)
+                    ? `1 ${pool.symbol0} ≈ ${(Number(formatUnits(pool.reserve1, 18)) / Number(formatUnits(pool.reserve0, 18))).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${pool.symbol1}`
+                    : '—'}
+                </div>
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="text-center py-8 md:py-[3vw] text-gray-400 text-sm md:text-[1vw]">
+                Loading pools...
+              </div>
+            )}
+
+            {!isLoading && pools.length === 0 && (
+              <div className="text-center py-8 md:py-[3vw] text-gray-400 text-sm md:text-[1vw]">
+                No pools yet.
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+
+      {/* FOOTER TEXT */}
+      <p className="relative z-10 text-gray-400 text-xs md:text-[1.1vw] w-full max-w-[360px] md:max-w-[32vw] text-center mt-6 md:mt-[2vw] mb-6 md:mb-[3vw] leading-relaxed tracking-tight font-normal drop-shadow-sm">
+        Pool data is read directly from the contract on <span className="text-blue-400 font-medium">BNB testnet</span>.
+      </p>
+
+    </div>
+  )
+}
+
+export default LiquidityPage
