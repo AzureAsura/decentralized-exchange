@@ -116,6 +116,9 @@ export function useSwap() {
 
     const hasEnteredValues = parsedSellAmount !== undefined && parsedBuyAmount !== undefined
 
+    const isInsufficientBalance =
+        parsedSellAmount !== undefined && sellBalance !== undefined && parsedSellAmount > sellBalance.value
+
     // Pindah sisi aktif TANPA nge-blank-in angka yang lagi ditampilin —
     // "bawa" nilai yang lagi kelihatan jadi input awal sisi yang baru diklik.
     const handleFocusSell = () => {
@@ -199,6 +202,7 @@ export function useSwap() {
         handleApprove,
         handleSwap,
         hasEnteredValues,
+        isInsufficientBalance,
         isQuoting,
         quoteError,
         rate,

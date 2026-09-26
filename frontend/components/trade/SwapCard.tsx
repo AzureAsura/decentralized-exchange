@@ -38,6 +38,7 @@ export const SwapCard: React.FC = () => {
         handleApprove,
         handleSwap,
         hasEnteredValues,
+        isInsufficientBalance,
         isQuoting,
         quoteError,
         rate,
@@ -153,11 +154,15 @@ export const SwapCard: React.FC = () => {
                 )}
 
                 {/* STATUS — error approve/swap sekarang ditampilkan di dalam popup masing-masing */}
-                {quoteError && (
+                {isInsufficientBalance ? (
+                    <p className="text-red-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.5vw]">
+                        Insufficient {sellAsset.symbol} balance.
+                    </p>
+                ) : quoteError ? (
                     <p className="text-red-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.5vw]">
                         Insufficient liquidity for this trade — try a smaller amount.
                     </p>
-                )}
+                ) : null}
 
                 {/* BUTTON ACTION */}
                 <div className="mt-2 md:mt-[0.4vw]">
@@ -177,21 +182,27 @@ export const SwapCard: React.FC = () => {
                             {
                                 needsApproval,
                                 label: `Approve ${sellAsset.symbol}`,
-                                disabled: !hasEnteredValues,
+                                disabled: !hasEnteredValues || isInsufficientBalance,
                                 isPending: approveTx.isPending,
                                 isConfirming: approveTx.isConfirming,
                                 onApprove: handleApproveClick,
                             },
                         ]}
                         submit={{
-                            disabled: !hasEnteredValues || isQuoting || Boolean(quoteError),
+                            disabled: !hasEnteredValues || isInsufficientBalance || isQuoting || Boolean(quoteError),
                             isPending: swapTx.isPending,
                             isConfirming: swapTx.isConfirming,
                             confirmingLabel: 'Swapping...',
-                            idleLabel: quoteError ? 'Insufficient liquidity' : hasEnteredValues ? 'Swap' : 'Enter an amount',
+                            idleLabel: isInsufficientBalance
+                                ? 'Insufficient balance'
+                                : quoteError
+                                    ? 'Insufficient liquidity'
+                                    : hasEnteredValues
+                                        ? 'Swap'
+                                        : 'Enter an amount',
                             onSubmit: handleSwapClick,
                         }}
-                        submitVariant={hasEnteredValues ? 'accent' : 'primary'}
+                        submitVariant={hasEnteredValues && !isInsufficientBalance ? 'accent' : 'primary'}
                     />
                 </div>
             </div>
