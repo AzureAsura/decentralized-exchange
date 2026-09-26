@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import Link from 'next/link'
 import { formatUnits } from 'viem'
 import { usePools } from '@/hooks/use-pools'
 import { TokenIcon } from '@/components/shared/TokenIcon'
@@ -9,7 +10,7 @@ export const PoolTable: React.FC = () => {
     const { pools, isLoading } = usePools()
 
     return (
-        <div className="card relative z-10 w-full max-w-[420px] md:max-w-none md:w-[48vw] md:min-w-[520px] rounded-3xl md:rounded-[1.6vw] p-2 md:p-[0.55vw] transition-all duration-300 overflow-hidden">
+        <div className="card relative z-10 w-full max-w-[420px] md:max-w-none md:w-[68vw] md:min-w-[520px] rounded-3xl md:rounded-[1.6vw] p-2 md:p-[0.55vw] transition-all duration-300 overflow-hidden">
 
             {/* WRAPPER SCROLL HORIZONTAL (Untuk Mobile/Tablet) */}
             <div className="w-full overflow-x-auto scrollbar-none">
@@ -24,9 +25,10 @@ export const PoolTable: React.FC = () => {
 
                     {/* ROWS / ISI TABEL */}
                     {pools.map((pool) => (
-                        <div
+                        <Link
                             key={pool.address}
-                            className="card grid grid-cols-[2fr_1.5fr_1.5fr] items-center rounded-2xl md:rounded-[1.2vw] px-4 md:px-[1.4vw] py-3 md:py-[0.9vw] border border-transparent"
+                            href={`/liquidity/${pool.address}`}
+                            className="card grid grid-cols-[2fr_1.5fr_1.5fr] items-center rounded-2xl md:rounded-[1.2vw] px-4 md:px-[1.4vw] py-3 md:py-[0.9vw] border border-transparent hover:bg-white/5 transition-colors cursor-pointer"
                         >
                             {/* PAIR */}
                             <div className="flex items-center gap-3 md:gap-[0.7vw]">
@@ -54,7 +56,7 @@ export const PoolTable: React.FC = () => {
                                     ? `1 ${pool.symbol0} ≈ ${(Number(formatUnits(pool.reserve1, 18)) / Number(formatUnits(pool.reserve0, 18))).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${pool.symbol1}`
                                     : '—'}
                             </div>
-                        </div>
+                        </Link>
                     ))}
 
                     {isLoading && (

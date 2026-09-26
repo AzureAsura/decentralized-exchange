@@ -1,5 +1,3 @@
-import { notFound } from 'next/navigation'
-import { getPairBySlug } from '@/lib/pairs'
 import { PairLiquidityView } from '@/components/liquidity/PairLiquidityView'
 
 export default async function PairLiquidityPage({
@@ -7,12 +5,7 @@ export default async function PairLiquidityPage({
 }: {
   params: Promise<{ pair: string }>
 }) {
-  const { pair: slug } = await params
-  const pair = getPairBySlug(slug)
+  const { pair } = await params
 
-  if (!pair) {
-    notFound()
-  }
-
-  return <PairLiquidityView pair={pair} />
+  return <PairLiquidityView pairAddress={pair as `0x${string}`} />
 }

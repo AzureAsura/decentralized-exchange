@@ -37,6 +37,13 @@ export const pairAbi = [
   },
   { type: 'function', name: 'token0', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { type: 'function', name: 'token1', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  {
+    type: 'function',
+    name: 'nonces',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
 ] as const
 
 export const ROUTER_ADDRESS = '0x7bE8ec3CBD3c80BbF0Df4C57adF1858642953B53' as const
@@ -78,6 +85,84 @@ export const routerAbi = [
       { name: 'amountA', type: 'uint256' },
       { name: 'amountB', type: 'uint256' },
       { name: 'liquidity', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'removeLiquidity',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'tokenA', type: 'address' },
+      { name: 'tokenB', type: 'address' },
+      { name: 'liquidity', type: 'uint256' },
+      { name: 'amountAMin', type: 'uint256' },
+      { name: 'amountBMin', type: 'uint256' },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+    ],
+    outputs: [
+      { name: 'amountA', type: 'uint256' },
+      { name: 'amountB', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'removeLiquidityETH',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'liquidity', type: 'uint256' },
+      { name: 'amountTokenMin', type: 'uint256' },
+      { name: 'amountETHMin', type: 'uint256' },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+    ],
+    outputs: [
+      { name: 'amountToken', type: 'uint256' },
+      { name: 'amountETH', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'removeLiquidityWithPermit',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'tokenA', type: 'address' },
+      { name: 'tokenB', type: 'address' },
+      { name: 'liquidity', type: 'uint256' },
+      { name: 'amountAMin', type: 'uint256' },
+      { name: 'amountBMin', type: 'uint256' },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+      { name: 'approveMax', type: 'bool' },
+      { name: 'v', type: 'uint8' },
+      { name: 'r', type: 'bytes32' },
+      { name: 's', type: 'bytes32' },
+    ],
+    outputs: [
+      { name: 'amountA', type: 'uint256' },
+      { name: 'amountB', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'removeLiquidityETHWithPermit',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'liquidity', type: 'uint256' },
+      { name: 'amountTokenMin', type: 'uint256' },
+      { name: 'amountETHMin', type: 'uint256' },
+      { name: 'to', type: 'address' },
+      { name: 'deadline', type: 'uint256' },
+      { name: 'approveMax', type: 'bool' },
+      { name: 'v', type: 'uint8' },
+      { name: 'r', type: 'bytes32' },
+      { name: 's', type: 'bytes32' },
+    ],
+    outputs: [
+      { name: 'amountToken', type: 'uint256' },
+      { name: 'amountETH', type: 'uint256' },
     ],
   },
   {
