@@ -1,19 +1,11 @@
 import React from 'react'
 import { formatUnits } from 'viem'
 import { ASSETS, type Asset } from '@/lib/contracts'
+import { truncateDisplayAmount } from '@/lib/format'
 import { AssetSelectModal } from '@/components/shared/AssetSelectModal'
 import { TokenSelectButton } from '@/components/shared/TokenSelectButton'
 
 const MAX_AMOUNT_LENGTH = 16
-
-// Sisi yang lagi nggak aktif nampilin hasil quote (formatUnits, bisa sampai 18 desimal) —
-// dipotong ke 6 desimal biar kebaca, tanpa ubah string yang lagi diketik user di sisi aktif.
-const formatDisplayValue = (value: string) => {
-    if (!value) return value
-    const parsed = Number(value)
-    if (!Number.isFinite(parsed)) return value
-    return parsed.toLocaleString(undefined, { maximumFractionDigits: 6, useGrouping: false })
-}
 
 interface TokenInputCardProps {
     variant: 'sell' | 'buy'
@@ -55,7 +47,7 @@ export const TokenInputCard: React.FC<TokenInputCardProps> = ({
             <div className="flex items-center w-[55%]">
                 <input
                     type="text"
-                    value={isActive ? value : formatDisplayValue(value)}
+                    value={isActive ? value : truncateDisplayAmount(value)}
                     onChange={(e) => onChange(e.target.value)}
                     onFocus={onFocus}
                     placeholder="0.0"

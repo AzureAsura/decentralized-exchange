@@ -3,6 +3,7 @@
 import React from 'react'
 import { ArrowDown, ExternalLink } from 'lucide-react'
 import { BLOCK_EXPLORER_TX_URL, type Asset } from '@/lib/contracts'
+import { truncateDisplayAmount } from '@/lib/format'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import {
     Dialog,
@@ -41,12 +42,14 @@ interface SwapReviewModalProps {
 }
 
 const SwapSummaryRow: React.FC<{ asset: Asset; amount: string }> = ({ asset, amount }) => (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2.5 min-w-0">
         <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
             <TokenIcon symbol={asset.symbol} className="w-8 h-8" />
         </div>
-        <span className="text-xl font-bold text-white tracking-tight">{amount || '0.0'}</span>
-        <span className="text-sm font-semibold text-gray-300">{asset.symbol}</span>
+        <span className="text-xl font-bold text-white tracking-tight truncate min-w-0 flex-1">
+            {truncateDisplayAmount(amount) || '0.0'}
+        </span>
+        <span className="text-sm font-semibold text-gray-300 shrink-0">{asset.symbol}</span>
     </div>
 )
 
