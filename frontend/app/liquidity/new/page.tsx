@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { AddLiquidityForm } from '@/components/liquidity/AddLiquidityForm'
@@ -24,7 +24,9 @@ const NewPoolPage = () => {
         Add Liquidity
       </h1>
 
-      <AddLiquidityForm />
+      <Suspense fallback={null}>
+        <AddLiquidityForm />
+      </Suspense>
 
     </div>
   )
