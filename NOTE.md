@@ -2,6 +2,47 @@
 
 Rationale and design notes that don't belong as inline comments in the contracts. Organized by file.
 
+## NirmalaRouter.sol (bagian liquidity)
+
+`addLiquidity`, `addLiquidityETH`, `removeLiquidity`, `removeLiquidityETH`, `removeLiquidityWithPermit`, `removeLiquidityETHWithPermit`. Bagian swap dikerjakan sesi berikutnya. Sesuai PRD bagian 11.
+
+Deviasi dari reference (`UniswapV2Router02.sol`), semua disengaja:
+- **Slippage protection (`amountAMin`/`amountBMin`/dst.) ditambahkan di semua fungsi** — draft plan awal user nggak nyebut ini; ditemukan & dikoreksi sebelum implementasi (lihat diskusi plan mode).
+- **`removeLiquidity` bersifat `public`**, dipanggil langsung dari `removeLiquidityETH` dengan `to = address(this)`. `msg.sender` tetap user asli di internal call.
+- **Permit dibungkus `try/catch`** (`_permit()`) — kalau signature permit "dipakai duluan" oleh pihak lain di mempool (siapapun bisa nyubmit signature yang sama, itu data publik), Router cek allowance yang udah ada dulu sebelum lanjut, bukan langsung revert. **Diverifikasi lewat test** (`test_removeLiquidityWithPermit_succeedsEvenIfPermitFrontRun`) yang secara eksplisit manggil `pair.permit()` duluan dengan signature yang sama sebelum manggil Router, dan tx Router tetap sukses.
+- **Kirim ETH pakai OZ `Address.sendValue`**, bukan `.transfer()`/`.call` manual — revert otomatis kalau gagal.
+- **`IWETH.transfer()` return value dicek eksplisit** (`NirmalaRouter__WETHTransferFailed`) — WETH kanonik asli (bukan OZ-style) `return false` alih-alih revert kalau gagal, beda dari kebanyakan ERC20 modern. Mock test (`WETH9.sol`, OZ-based) nggak pernah menghasilkan `false` secara alami, jadi dibikin mock kedua khusus (`test/mocks/FalseTransferWETH.sol`) buat nge-test branch ini.
+- **Tidak ada `nonReentrant`** — Router nggak nyimpen state apapun; dana cuma transit dalam 1 transaksi. Kontrak yang custody dana (`NirmalaPair`) udah `nonReentrant`.
+- **Tidak ada event di Router** — `NirmalaPair` udah emit `Mint`/`Burn`/`Sync`, event Router cuma duplikat data yang sama.
+
+**Stack too deep** (`optimizer = false`, `via_ir = false` di `foundry.toml`, tidak diubah): `addLiquidity` awalnya kena `Stack too deep` karena 8 parameter + 3 return value + 1 local udah kepenuhan buat legacy codegen. Fix: bagian transfer+mint dipisah ke helper internal `_settleLiquidity()`, pola sama scoping block yang udah dipakai di `NirmalaPair.swap()`. Fungsi lain (`addLiquidityETH`, `removeLiquidityETH`, dua varian permit — yang terakhir ini py 11 parameter) ternyata kompail lolos tanpa perlu pemecahan serupa.
+
+**Coverage — 1 branch nggak kehitung, dan itu bukan gap test:** `forge coverage` nunjuk `ensure` modifier (baris `require(deadline >= block.timestamp, ...)`) cuma 1 dari 2 branch yang "ke-instrument" (nilai `-`/kosong di data mentah `lcov`, bukan `0` — beda dari gap asli yang nilainya `0` vs `N`). Ini keterbatasan `forge coverage` dalam attribute branch buat modifier yang dipakai di banyak fungsi sekaligus (`ensure` dipakai di 4 fungsi), bukan cuma di 1 fungsi kayak `require` biasa di `NirmalaPair.sol`/`NirmalaFactory.sol`. Revert path-nya **beneran ketes** (`test_addLiquidity_revertsIfDeadlineExpired`, pakai `vm.expectRevert`, lolos) — cuma reporting coverage-nya yang nggak akurat buat kasus modifier. Dua gap asli yang ketemu udah ditutup: `NirmalaRouter__WETHTransferFailed` (test pakai `FalseTransferWETH` mock) dan cek `amountBMin` di `removeLiquidity` (test awal cuma nutupin sisi `amountAMin`).
+
+Trust assumption: Router nggak ngecek ulang bahwa alamat hasil `NirmalaLibrary.pairFor()` itu beneran `NirmalaPair` yang valid — sama kayak Uniswap V2 Router, karena alamatnya deterministik dari `factory` + init code hash yang immutable/constant.
+
+## NirmalaRouter.sol (bagian swap)
+
+`_swap`, `swapExactTokensForTokens`, `swapTokensForExactTokens`, `swapExactETHForTokens`, `swapTokensForExactETH`, `swapExactTokensForETH`, `swapETHForExactTokens`, plus 5 view helper (`quote`, `getAmountOut`, `getAmountIn`, `getAmountsOut`, `getAmountsIn`). Sesuai PRD bagian 12. Fee-on-transfer sengaja tidak didukung (dikunci di PRD, dibahas via diskusi sebelum implementasi) — token fee-on-transfer revert bersih lewat `NirmalaPair__K` kalau di-swap lewat fungsi biasa, bukan fund-loss.
+
+Deviasi dari reference (`UniswapV2Router02.sol`), semua disengaja:
+- **`_swap` internal di Router**, bukan di `NirmalaLibrary` — perlu external call ke `NirmalaPair.swap()`, sedangkan library tetap murni `pure`/`view`.
+- **View helper (`quote`/`getAmountOut`/`getAmountIn`/`getAmountsOut`/`getAmountsIn`) baru ditambah di Router** — bukan bagian dari draft plan awal user, ditambah karena `NirmalaLibrary`-nya `internal` (nggak bisa dipanggil langsung dari luar kontrak) dan frontend butuh estimasi harga sebelum user sign tx. Cuma delegasi tipis, tanpa logic baru.
+- **Urutan cek di 4 fungsi ETH**: `getAmountsOut`/`getAmountsIn` dipanggil DULU (baru itu yang validasi `path.length >= 2` via `NirmalaLibrary__InvalidPath`), baru cek `path[0]`/`path[last] == WETH` — supaya path kosong/pendek dapet revert yang jelas duluan, bukan panic index-out-of-bounds pas baca `path[0]`.
+- **Swap nggak auto-`createPair()`** — beda dari `addLiquidity`/`addLiquidityETH`. Kalau pair di tengah `path` belum ada, `getReserves()` manggil alamat tanpa kode dan revert (generic, nggak ada custom error khusus) sebelum transfer apapun terjadi.
+
+Test (`test/NirmalaRouterTest.t.sol`): 49 test bagian swap (dari 21 sebelumnya) — happy path tiap 6 fungsi dicek terhadap nilai persis `getAmountsOut`/`getAmountsIn` (bukan `> 0`), multi-hop A→B→C dicek saldo Router tetap 0 di antara hop, tiap revert path (`amountOutMin`/`amountInMax`/deadline/path WETH salah/pair belum ada/WETH transfer false) dites masing-masing per fungsi (bukan cuma 1 fungsi contoh), 2 fuzz test (`neverBelowMinAndRouterHoldsNothing`, `neverExceedsMaxAndRouterHoldsNothing`), dan 5 test kesamaan hasil Router-vs-`NirmalaLibrary` buat view helper.
+
+**Coverage — sempat ada 5 branch asli belum ketes, ditemukan lewat `forge coverage`, bukan cuma modifier limitation:** setelah nulis versi pertama test suite, branch coverage `NirmalaRouter.sol` cuma 87.76% (43/49). Ditelusuri lewat `forge coverage --report lcov` (`BRDA` line-by-line, cari yang hit count 0) — 5 dari 6 gap itu REVERT PATH ASLI yang belum ketes: `amountOutMin` di `swapExactETHForTokens`/`swapExactTokensForETH`, `amountInMax` di `swapTokensForExactETH`, path-validation `WETH` di `swapETHForExactTokens`, dan cabang `WETH.transfer` return `false` khusus di `swapETHForExactTokens` (beda fungsi dari yang udah ketes di `swapExactETHForTokens`). Ditambah 5 test buat nutup masing-masing, branch naik ke 97.96% (48/49). 1 gap tersisa (`ensure` modifier, baris `require(deadline >= block.timestamp, ...)`) adalah limitasi `forge coverage` yang sama kayak yang udah dicatat di bagian liquidity — sekarang dipakai di 10 fungsi (bukan 4), revert path-nya udah ketes beneran (`test_swapExactTokensForTokens_revertsIfDeadlineExpired` dkk., pakai `vm.expectRevert`, lolos).
+
+Trust assumption: sama seperti bagian liquidity — Router nggak ngecek ulang alamat hasil `NirmalaLibrary.pairFor()` itu beneran `NirmalaPair` valid.
+
+## test/NirmalaRouterTest.t.sol
+
+- `_signPermit()` helper bikin digest EIP-2612 manual (`PERMIT_TYPEHASH` di-hardcode dari spec, karena OZ `ERC20Permit` nggak expose typehash-nya publicly) — pola standar `vm.sign` + `DOMAIN_SEPARATOR()` + `nonces()`.
+- Semua test angka (bukan cuma revert path) diverifikasi terhadap real math (proporsi `quote`, `(liquidity * balance) / totalSupply` buat `burn`), bukan cuma dicek `> 0` — biar ketauan kalau ada kesalahan urutan A/B atau off-by-one.
+- `FalseTransferWETH` (`test/mocks/FalseTransferWETH.sol`) — test double yang `transfer()`-nya `return false` (bukan revert), buat nge-test defensive check `IWETH.transfer()` return value di `addLiquidityETH` dan (sesi ini) di `swapExactETHForTokens`/`swapETHForExactTokens`. Karena `transfer()`-nya cuma stub (nggak beneran mindahin saldo), pool tokenA/`badWeth` di test swap di-seed manual (`factory.createPair` + mint token langsung ke pair + cheat `deal()` buat saldo WETH palsu + `sync()`), bukan lewat `addLiquidityETH` yang pasti revert duluan kalau pakai `badWeth`.
+
 ## NirmalaPair.sol
 
 All 8 functions from PRD bagian 8 are implemented: `getReserves`, `initialize`, `_update`, `mint`, `burn`, `swap`, `skim`, `sync`. Built incrementally, one function per session step, each verified with `forge build`/`forge test`/`forge fmt --check` before moving to the next.
@@ -65,8 +106,12 @@ Trust assumption: `getReserves()`/`pairFor()` nggak ngecek pair-nya udah pernah 
 
 ## Session state (stopped here — resume point)
 
-As of this session: `NirmalaToken.sol`, `UQ112x112.sol`, `INirmalaCallee.sol`, `NirmalaPair.sol`, `NirmalaFactory.sol`, and `NirmalaLibrary.sol` are fully implemented and tested. 108 tests total, all passing (`forge test --fuzz-runs 1000` ×3 clean), `forge fmt --check` clean, `forge coverage` 100% lines/statements/branches/funcs on `NirmalaLibrary.sol` (99.50%/98.21% overall statements/branches — gap is one untested branch in the test-only `MockNirmalaCallee`, not production code). Slither not installed in this environment — static analysis not run, not assumed clean.
+As of this session: `NirmalaRouter.sol` sekarang lengkap — liquidity (sesi sebelumnya) + swap (`_swap`, 6 fungsi `swapExact.../swap...Exact...`, 5 view helper delegasi ke `NirmalaLibrary`). PRD bagian 12 ditulis & disetujui user sebelum implementasi (alur "PRD dulu, baru code"), fee-on-transfer dikunci **tidak didukung**.
 
-Not started yet: `NirmalaRouter.sol`. Still open in `PRD.md`: final chain (BNB testnet vs Base Sepolia) + matching `evm_version`, and whether fee-on-transfer tokens are supported.
+157 test total (49 di `NirmalaRouterTest`, naik dari 129/21 sesi sebelumnya), semua lolos (`forge test --fuzz-runs 1000` ×3 clean), `forge fmt --check` clean, `forge coverage` pada `NirmalaRouter.sol`: 100% lines/statements/funcs, 97.96% (48/49) branches — 1 gap tersisa (modifier `ensure`) adalah limitasi instrumentasi `forge coverage`, bukan gap asli (lihat bagian `NirmalaRouter.sol (bagian swap)` di atas untuk cerita lengkap 5 gap asli yang sempat ketemu & ditutup). Slither belum terinstall di environment ini — static analysis belum dijalankan, tidak diasumsikan bersih.
 
-Natural next step: `NirmalaRouter.sol` — `addLiquidity`/`removeLiquidity`/`swapExactTokensForTokens` etc., wired to `NirmalaFactory` + `NirmalaLibrary`.
+Seluruh scope `NirmalaRouter.sol` dari PRD (bagian 11 + 12) sudah selesai. Yang masih terbuka: chain target final (BNB testnet vs Base Sepolia) + `evm_version`, `HelperConfig.s.sol`/`DeployNirmala.s.sol` (belum ditulis), dan frontend (belum dimulai sama sekali).
+
+Still open in `PRD.md`: final chain (BNB testnet vs Base Sepolia) + matching `evm_version`, and whether fee-on-transfer tokens are supported.
+
+Natural next step: `NirmalaRouter.sol` swap functions (`swapExactTokensForTokens`, `swapTokensForExactTokens`, ETH variants), wired to `NirmalaLibrary.getAmountsOut/getAmountsIn`.

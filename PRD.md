@@ -205,7 +205,68 @@ Setara `UniswapV2Library` — kumpulan fungsi murni (`internal`, di-inline ke pe
 
 `getReserves()`/`pairFor()` nggak ngecek pair-nya udah pernah dibuat via Factory apa belum — kalau pair belum ada, `getReserves()` bakal manggil alamat tanpa kode dan revert. `NirmalaRouter.sol` (belum ditulis) yang nanti wajib mastiin `createPair()` dipanggil dulu sebelum nyoba interaksi apapun ke pair itu.
 
-## 11. Belum diputuskan (dibahas bertahap di sesi berikutnya)
+## 11. Core Contract — NirmalaRouter.sol (bagian liquidity)
+
+`NirmalaRouter.sol` adalah entry point yang user beneran pakai — narik token dari user (lewat allowance), transfer ke pair, panggil `mint`/`burn`. Dibangun bertahap: sesi ini cuma bagian liquidity (`add`/`remove`), swap dibahas sesi berikutnya. Router nggak custody dana sama sekali di luar 1 transaksi (nggak ada admin/pause, konsisten PRD bagian 5).
+
+State: `address public immutable factory`, `address public immutable WETH` — dua-duanya di-set di constructor, nggak pernah berubah.
+
+| Fungsi | Kegunaan |
+|---|---|
+| `_addLiquidity(...)` | `internal` — hitung `amountA`/`amountB` optimal. Kalau pair belum ada, bikin dulu lewat `factory.createPair()`. Kalau reserve masih 0/0 (liquidity pertama), pakai `amountADesired`/`amountBDesired` apa adanya. Kalau udah ada reserve, `quote()` B dari A dulu — kalau `amountBOptimal <= amountBDesired` pakai itu (dicek juga `>= amountBMin`), kalau nggak `quote()` A dari B (dicek `<= amountADesired` dan `>= amountAMin`) |
+| `addLiquidity(...)` | versi ERC20-ERC20. Panggil `_addLiquidity`, `safeTransferFrom` kedua token dari `msg.sender` langsung ke alamat pair (dihitung lewat `NirmalaLibrary.pairFor`, tanpa external call), baru `NirmalaPair.mint(to)` |
+| `addLiquidityETH(...)` | versi ERC20-ETH. Terima `msg.value` sebagai `amountETHDesired`. `safeTransferFrom` token ke pair, `IWETH.deposit{value: amountETH}()` lalu kirim WETH-nya ke pair, `mint(to)`. **Sisa ETH yang nggak kepake (`msg.value - amountETH`) di-refund ke `msg.sender`** |
+| `removeLiquidity(...)` | `safeTransferFrom` LP token dari `msg.sender` ke pair, `NirmalaPair.burn(to)`, cek hasil `amount0`/`amount1` (di-map balik ke urutan A/B pakai `sortTokens`) terhadap `amountAMin`/`amountBMin` |
+| `removeLiquidityETH(...)` | panggil `removeLiquidity` dengan `to = address(this)`, token non-ETH langsung `safeTransfer` ke `to` asli, WETH-nya `IWETH.withdraw()` lalu ETH native dikirim ke `to` pakai OZ `Address.sendValue` |
+| `removeLiquidityWithPermit(...)` / `removeLiquidityETHWithPermit(...)` | varian yang nerima signature (`v,r,s` + `approveMax`) buat approve LP token via `permit()` dalam 1 transaksi, tanpa perlu `approve()` terpisah duluan |
+
+**Keputusan desain:**
+- **Slippage protection (`amountAMin`/`amountBMin`/`amountTokenMin`/`amountETHMin`) wajib di semua fungsi add/remove** — tanpa ini, rasio pool bisa berubah antara user sign tx dan tx dieksekusi (disandwich), user bisa nerima rasio/jumlah jauh dari yang diharapkan.
+- **`removeLiquidity` bersifat `public`** (bukan `external`), supaya bisa dipanggil langsung dari `removeLiquidityETH` — `msg.sender` tetap user asli di internal call, jadi `transferFrom` LP token tetap narik dari user, bukan dari Router.
+- **Permit dibungkus `try/catch`** — kalau signature permit udah "dipakai duluan" oleh pihak lain di mempool (front-run yang legit, bukan serangan — siapapun bisa nyubmit signature yang sama karena itu public data), Router cek dulu allowance yang ada ke pair udah cukup apa belum sebelum ngelanjut, bukan langsung revert. Deviasi dari Uniswap V2 yang manggil `permit()` langsung tanpa guard.
+- **Tidak ada event tambahan di Router** — `NirmalaPair` udah emit `Mint`/`Burn`/`Sync` sendiri; event di Router cuma bakal duplikat data yang sama.
+- **Tidak ada `nonReentrant`** — Router nggak nyimpen state apapun dan dana cuma transit dalam 1 transaksi (nggak pernah "parkir" antar-transaksi); kontrak yang beneran custody dana (`NirmalaPair`) udah `nonReentrant`.
+- **Belum mendukung token fee-on-transfer** — item ini masih "belum diputuskan" (lihat bagian 12); kalau nanti didukung, butuh varian terpisah (`removeLiquidity`/`swap` yang baca balance aktual pair setelah transfer, bukan percaya `amountA`/`amountB` yang dihitung).
+
+### WETH per environment
+
+- **Anvil/test:** `test/mocks/WETH9.sol` — mock minimal, di-deploy sendiri tiap kali test/Anvil jalan. **Tidak pernah masuk `src/`** (lihat bagian 4), supaya nggak ke-deploy tanpa sengaja ke testnet/mainnet.
+- **Testnet:** alamat WETH/WBNB canonical yang udah ada di chain itu, dibaca lewat `HelperConfig.s.sol` per `chainid` — belum dikerjakan, nunggu chain final dikunci.
+
+### Trust assumption
+
+Router mengasumsikan `factory`/`WETH` yang di-set di constructor itu benar dan nggak berubah (`immutable`). Router nggak ngecek ulang bahwa alamat pair hasil `NirmalaLibrary.pairFor()` itu beneran kontrak `NirmalaPair` yang valid — ini konsisten sama Uniswap V2 Router, karena alamat itu dihitung deterministik dari `factory` + init code hash yang juga `immutable`/`constant`.
+
+## 12. Core Contract — NirmalaRouter.sol (bagian swap)
+
+Lanjutan bagian 11 (liquidity). Router menerima `path` (array alamat token, hop demi hop) dan mengeksekusi swap lewat rangkaian `NirmalaPair.swap()`, tanpa pernah menahan token lebih dari 1 transaksi.
+
+| Fungsi | Kegunaan |
+|---|---|
+| `_swap(amounts, path, _to)` | `internal` — loop tiap hop di `path`. Tiap hop: sort `input`/`output` token buat nentuin `amount0Out`/`amount1Out` (salah satu 0), lalu panggil `NirmalaPair(pairFor(input, output)).swap(amount0Out, amount1Out, to, "")`. `data` selalu kosong — Router nggak pernah pakai flash swap callback punya sendiri |
+| `swapExactTokensForTokens(...)` | hitung `amounts` lewat `getAmountsOut`, cek `amounts[last] >= amountOutMin`, `safeTransferFrom` token pertama dari `msg.sender` ke pair pertama, panggil `_swap` |
+| `swapTokensForExactTokens(...)` | kebalikannya — `getAmountsIn`, cek `amounts[0] <= amountInMax`, transfer & `_swap` sama seperti di atas |
+| `swapExactETHForTokens(...)` | versi ETH masuk. `path[0]` wajib `WETH`. `amounts` dari `getAmountsOut(msg.value, path)`, cek `amounts[last] >= amountOutMin`, `IWETH.deposit{value: amounts[0]}()` lalu WETH-nya ditransfer ke pair pertama, `_swap` |
+| `swapTokensForExactETH(...)` | `path[last]` wajib `WETH`. `getAmountsIn`, cek `amounts[0] <= amountInMax`, transfer token in ke pair pertama, `_swap` dengan `_to = address(this)`, lalu `IWETH.withdraw` dan `Address.sendValue` ETH-nya ke `to` |
+| `swapExactTokensForETH(...)` | `path[last]` wajib `WETH`. `getAmountsOut`, cek `amounts[last] >= amountOutMin`, transfer & `_swap` ke `address(this)`, withdraw + sendValue sama seperti di atas |
+| `swapETHForExactTokens(...)` | `path[0]` wajib `WETH`. `getAmountsIn(amountOut, path)`, cek `amounts[0] <= msg.value`, deposit + transfer WETH ke pair pertama, `_swap` ke `to`. **Sisa ETH (`msg.value - amounts[0]`) di-refund** ke `msg.sender`, pola sama `addLiquidityETH` |
+| `quote`, `getAmountOut`, `getAmountIn`, `getAmountsOut`, `getAmountsIn` | wrapper `public`/`view`/`pure` tipis, langsung delegasi ke `NirmalaLibrary` — dipakai frontend buat estimasi harga & hitung `amountOutMin`/`amountInMax` sebelum user sign transaksi |
+
+### Mekanisme `_swap`
+
+Tiap hop `i` di `path`: token `output` hop ini jadi token `input` hop berikutnya. `to` tujuan transfer hop `i` adalah alamat pair hop berikutnya (`pairFor(path[i+1], path[i+2])`) kalau bukan hop terakhir, atau `_to` asli kalau ini hop terakhir — biar token nggak pernah mampir ke Router di antara hop (konsisten prinsip Router nggak custody dana, bagian 11).
+
+**Keputusan desain:**
+- **Slippage protection wajib**: `amountOutMin` di semua fungsi exact-in, `amountInMax` di semua fungsi exact-out (termasuk `msg.value` sebagai `amountInMax` implisit di `swapETHForExactTokens`) — alasan sama bagian 11 (cegah sandwich antara sign & eksekusi tx).
+- **Validasi `path[0]`/`path[last]` harus `WETH`** di keempat fungsi ETH — kalau di-skip, Router bakal nyoba `IWETH.deposit`/`withdraw` padahal token pertama/terakhir bukan WETH, hasilnya token nyangkut atau salah kirim.
+- **Tidak ada dukungan fee-on-transfer** (`swapExactTokensForTokensSupportingFeeOnTransferTokens` dkk. dari Uniswap V2 TIDAK dibuat) — item ini sempat "belum diputuskan", sekarang dikunci: token fee-on-transfer di-swap lewat fungsi biasa akan revert bersih (`NirmalaPair__K`, karena `amountOut` dihitung dari `amounts[]` yang di-precompute, bukan dari selisih balance aktual pair). Bukan fund-loss, cuma limitasi fitur — bisa ditambah nanti tanpa nyentuh `NirmalaPair`/`NirmalaFactory` kalau suatu saat dibutuhkan.
+- **Tidak ada `nonReentrant`/event tambahan** — alasan sama bagian 11 (Router nggak custody dana antar-transaksi, `NirmalaPair` udah emit `Swap` sendiri).
+- **View helper cuma delegasi**, tidak ada logic baru — `NirmalaLibrary` tetap satu-satunya tempat rumus matematika swap, Router cuma nyediain entry point `public` karena fungsi `internal` di library nggak bisa dipanggil langsung dari luar kontrak.
+
+### Trust assumption
+
+`_swap` nggak ngecek pair di tiap hop udah pernah dibuat via Factory — kalau `path` ngandung pasangan token yang pair-nya belum ada, `getAmountsOut`/`getAmountsIn` (lewat `NirmalaLibrary.getReserves`) bakal manggil alamat tanpa kode dan revert duluan sebelum sempat transfer apapun. Beda dari `addLiquidity`/`addLiquidityETH` yang auto-`createPair()` kalau belum ada — swap nggak auto-create karena bikin pair kosong (reserve 0/0) di tengah path cuma bakal bikin `getAmountOut` revert lebih lambat (`NirmalaLibrary__InsufficientLiquidity`), bukan berhasil.
+
+## 13. Belum diputuskan (dibahas bertahap di sesi berikutnya)
 
 - Chain target final (BNB testnet vs Base Sepolia) + `evm_version` yang cocok
-- Dukungan token fee-on-transfer
