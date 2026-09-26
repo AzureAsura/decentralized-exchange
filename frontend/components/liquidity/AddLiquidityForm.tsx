@@ -1,97 +1,89 @@
 'use client'
 
 import React, { useState } from 'react'
-import Link from 'next/link'
 import { Plus } from 'lucide-react'
-import { erc20Abi } from 'viem'
+import { formatUnits } from 'viem'
 import { useAccount } from 'wagmi'
-import { ROUTER_ADDRESS, routerAbi, TEST_TOKENS, ASSETS, NATIVE_BNB, type Asset } from '@/lib/contracts'
-import { safeParseEther } from '@/lib/format'
 import { useCorrectNetwork } from '@/hooks/use-correct-network'
-import { useAllowance } from '@/hooks/use-allowance'
-import { useTransaction } from '@/hooks/use-transaction'
+import { useAddLiquidity } from '@/hooks/use-add-liquidity'
 import { TokenAmountCard } from '@/components/liquidity/TokenAmountCard'
+import { AddLiquidityReviewModal, type AddLiquidityModalPhase } from '@/components/liquidity/AddLiquidityReviewModal'
+import { ApproveStatusModal } from '@/components/trade/ApproveStatusModal'
 import { TxActionButton } from '@/components/shared/TxActionButton'
+import type { TxFlowStatus } from '@/components/shared/TxFlowAnimation'
+import type { Asset } from '@/lib/contracts'
 
 export const AddLiquidityForm: React.FC = () => {
-    const { address, isConnected } = useAccount()
+    const { isConnected } = useAccount()
     const { isWrongNetwork, isSwitching, switchToCorrectNetwork } = useCorrectNetwork()
+    const [isApproveModalOpen, setIsApproveModalOpen] = useState(false)
+    const [isSupplyModalOpen, setIsSupplyModalOpen] = useState(false)
+    const [approvingAsset, setApprovingAsset] = useState<Asset | null>(null)
+    const [approvingAmount, setApprovingAmount] = useState<bigint | null>(null)
 
-    const [tokenA, setTokenA] = useState<Asset>(NATIVE_BNB)
-    const [tokenB, setTokenB] = useState<Asset>(TEST_TOKENS[0])
-    const [amountA, setAmountA] = useState('')
-    const [amountB, setAmountB] = useState('')
+    const {
+        tokenA,
+        tokenB,
+        amountADisplay,
+        amountBDisplay,
+        tokenABalance,
+        tokenBBalance,
+        pairExists,
+        reserveA,
+        reserveB,
+        setAmountAInput,
+        setAmountBInput,
+        handleFocusA,
+        handleFocusB,
+        handleSelectTokenA,
+        handleSelectTokenB,
+        handleApprove,
+        handleSupply,
+        resetSupplyForm,
+        hasValidAmounts,
+        isInsufficientBalanceA,
+        isInsufficientBalanceB,
+        isInsufficientBalance,
+        amountAMin,
+        amountBMin,
+        needsApprovalA,
+        needsApprovalB,
+        parsedAmountA,
+        parsedAmountB,
+        approveTx,
+        supplyTx,
+    } = useAddLiquidity()
 
-    const parsedAmountA = safeParseEther(amountA)
-    const parsedAmountB = safeParseEther(amountB)
-    const hasValidAmounts = parsedAmountA !== undefined && parsedAmountB !== undefined
-
-    const isNativePair = tokenA.address === null || tokenB.address === null
-
-    const allowanceA = useAllowance(tokenA, address, parsedAmountA)
-    const allowanceB = useAllowance(tokenB, address, parsedAmountB)
-
-    const approveTx = useTransaction(
-        'approve',
-        {
-            walletMessage: 'Confirm the approval in your wallet...',
-            confirmingMessage: 'Approving...',
-            successMessage: 'Approved',
-            errorMessage: 'Approval failed or was rejected',
-        },
-        () => {
-            allowanceA.refetch()
-            allowanceB.refetch()
-        }
-    )
-
-    const supplyTx = useTransaction('supply', {
-        walletMessage: 'Confirm the supply in your wallet...',
-        confirmingMessage: 'Adding liquidity...',
-        successMessage: 'Liquidity added!',
-        errorMessage: 'Supply failed or was rejected',
-    })
-
-    const handleSelectTokenA = (asset: Asset) => {
-        setTokenA(asset)
-        if (tokenB.symbol === asset.symbol) setTokenB(ASSETS.find((a) => a.symbol !== asset.symbol) ?? TEST_TOKENS[0])
+    const handleApproveClick = (asset: Asset, amount: bigint) => {
+        approveTx.reset()
+        setApprovingAsset(asset)
+        setApprovingAmount(amount)
+        setIsApproveModalOpen(true)
+        handleApprove(asset, amount)
     }
 
-    const handleSelectTokenB = (asset: Asset) => {
-        setTokenB(asset)
-        if (tokenA.symbol === asset.symbol) setTokenA(ASSETS.find((a) => a.symbol !== asset.symbol) ?? NATIVE_BNB)
+    const handleSupplyClick = () => {
+        supplyTx.reset()
+        setIsSupplyModalOpen(true)
     }
 
-    const handleApprove = (asset: Asset, amount: bigint) => {
-        if (!asset.address) return
-        approveTx.send({ address: asset.address, abi: erc20Abi, functionName: 'approve', args: [ROUTER_ADDRESS, amount] })
-    }
-
-    const handleSupply = () => {
-        if (!address || parsedAmountA === undefined || parsedAmountB === undefined) return
-        const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20)
-
-        if (isNativePair) {
-            const [ercAsset, ercAmount, ethAmount] =
-                tokenA.address === null ? [tokenB, parsedAmountB, parsedAmountA] : [tokenA, parsedAmountA, parsedAmountB]
-            if (!ercAsset.address) return
-            supplyTx.send({
-                address: ROUTER_ADDRESS,
-                abi: routerAbi,
-                functionName: 'addLiquidityETH',
-                args: [ercAsset.address, ercAmount as bigint, BigInt(0), BigInt(0), address, deadline],
-                value: ethAmount as bigint,
-            })
-        } else {
-            if (!tokenA.address || !tokenB.address) return
-            supplyTx.send({
-                address: ROUTER_ADDRESS,
-                abi: routerAbi,
-                functionName: 'addLiquidity',
-                args: [tokenA.address, tokenB.address, parsedAmountA, parsedAmountB, BigInt(0), BigInt(0), address, deadline],
-            })
+    const handleSupplyModalOpenChange = (open: boolean) => {
+        setIsSupplyModalOpen(open)
+        if (!open && supplyTx.isSuccess) {
+            resetSupplyForm()
         }
     }
+
+    const approveStatus: TxFlowStatus = approveTx.error ? 'error' : approveTx.isSuccess ? 'success' : 'sending'
+    const supplyPhase: AddLiquidityModalPhase = supplyTx.error
+        ? 'error'
+        : supplyTx.isSuccess
+            ? 'success'
+            : supplyTx.isPending || supplyTx.isConfirming
+                ? 'sending'
+                : 'review'
+
+    const insufficientAsset = isInsufficientBalanceA ? tokenA : isInsufficientBalanceB ? tokenB : undefined
 
     return (
         <>
@@ -102,8 +94,10 @@ export const AddLiquidityForm: React.FC = () => {
                     asset={tokenA}
                     excludeSymbol={tokenB.symbol}
                     onSelect={handleSelectTokenA}
-                    amount={amountA}
-                    onAmountChange={setAmountA}
+                    amount={amountADisplay}
+                    onAmountChange={setAmountAInput}
+                    onFocus={handleFocusA}
+                    balance={tokenABalance}
                 />
 
                 <div className="relative h-2 md:h-[0.6vw] flex items-center justify-center -my-1 md:my-[-0.2vw] z-20">
@@ -117,14 +111,22 @@ export const AddLiquidityForm: React.FC = () => {
                     asset={tokenB}
                     excludeSymbol={tokenA.symbol}
                     onSelect={handleSelectTokenB}
-                    amount={amountB}
-                    onAmountChange={setAmountB}
+                    amount={amountBDisplay}
+                    onAmountChange={setAmountBInput}
+                    onFocus={handleFocusB}
+                    balance={tokenBBalance}
                 />
 
-                {/* STATUS */}
-                {(approveTx.error || supplyTx.error) && (
+                {pairExists && reserveA !== undefined && reserveB !== undefined && reserveA > BigInt(0) && (
+                    <p className="text-gray-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.4vw]">
+                        Current price: 1 {tokenA.symbol} = {(Number(formatUnits(reserveB, 18)) / Number(formatUnits(reserveA, 18))).toLocaleString(undefined, { maximumFractionDigits: 6 })} {tokenB.symbol}
+                    </p>
+                )}
+
+                {/* STATUS — error approve/supply ditampilkan di dalam popup masing-masing */}
+                {insufficientAsset && (
                     <p className="text-red-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.5vw]">
-                        Transaction failed — please try again.
+                        Insufficient {insufficientAsset.symbol} balance.
                     </p>
                 )}
 
@@ -137,39 +139,37 @@ export const AddLiquidityForm: React.FC = () => {
                         onSwitchNetwork={switchToCorrectNetwork}
                         isSuccess={supplyTx.isSuccess}
                         successContent={
-                            <div className="flex flex-col items-center gap-2 md:gap-[0.5vw] text-center">
+                            <div className="flex flex-col items-center gap-1 text-center py-2">
                                 <span className="text-emerald-400 text-sm md:text-[1vw] font-semibold">Liquidity added!</span>
-                                <Link href="/liquidity" className="text-blue-400 text-xs md:text-[0.9vw] hover:underline">
-                                    View pools
-                                </Link>
                             </div>
                         }
                         approvalSteps={[
                             {
-                                needsApproval: allowanceA.needsApproval,
+                                needsApproval: needsApprovalA,
                                 label: `Approve ${tokenA.symbol}`,
-                                disabled: !hasValidAmounts,
+                                disabled: !hasValidAmounts || isInsufficientBalance,
                                 isPending: approveTx.isPending,
                                 isConfirming: approveTx.isConfirming,
-                                onApprove: () => handleApprove(tokenA, parsedAmountA as bigint),
+                                onApprove: () => handleApproveClick(tokenA, parsedAmountA as bigint),
                             },
                             {
-                                needsApproval: allowanceB.needsApproval,
+                                needsApproval: needsApprovalB,
                                 label: `Approve ${tokenB.symbol}`,
-                                disabled: !hasValidAmounts,
+                                disabled: !hasValidAmounts || isInsufficientBalance,
                                 isPending: approveTx.isPending,
                                 isConfirming: approveTx.isConfirming,
-                                onApprove: () => handleApprove(tokenB, parsedAmountB as bigint),
+                                onApprove: () => handleApproveClick(tokenB, parsedAmountB as bigint),
                             },
                         ]}
                         submit={{
-                            disabled: !hasValidAmounts,
+                            disabled: !hasValidAmounts || isInsufficientBalance,
                             isPending: supplyTx.isPending,
                             isConfirming: supplyTx.isConfirming,
                             confirmingLabel: 'Supplying...',
-                            idleLabel: 'Supply',
-                            onSubmit: handleSupply,
+                            idleLabel: isInsufficientBalance ? 'Insufficient balance' : hasValidAmounts ? 'Supply' : 'Enter an amount',
+                            onSubmit: handleSupplyClick,
                         }}
+                        submitVariant={hasValidAmounts && !isInsufficientBalance ? 'accent' : 'primary'}
                     />
                 </div>
             </div>
@@ -178,6 +178,29 @@ export const AddLiquidityForm: React.FC = () => {
                 If this pair already has liquidity, your amounts are automatically adjusted to match the current price —
                 the ratio you enter only sets the price for a brand-new pair.
             </p>
+
+            <ApproveStatusModal
+                open={isApproveModalOpen}
+                onOpenChange={setIsApproveModalOpen}
+                symbol={approvingAsset?.symbol ?? ''}
+                status={approveStatus}
+                onRetry={() => approvingAsset && approvingAmount !== null && handleApprove(approvingAsset, approvingAmount)}
+            />
+
+            <AddLiquidityReviewModal
+                open={isSupplyModalOpen}
+                onOpenChange={handleSupplyModalOpenChange}
+                phase={supplyPhase}
+                tokenA={tokenA}
+                tokenB={tokenB}
+                amountADisplay={amountADisplay}
+                amountBDisplay={amountBDisplay}
+                pairExists={pairExists}
+                amountAMin={amountAMin}
+                amountBMin={amountBMin}
+                hash={supplyTx.hash}
+                onConfirm={handleSupply}
+            />
         </>
     )
 }

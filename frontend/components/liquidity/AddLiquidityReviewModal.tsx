@@ -1,74 +1,61 @@
 'use client'
 
 import React from 'react'
-import { ArrowDown, ExternalLink } from 'lucide-react'
+import { ExternalLink, Plus } from 'lucide-react'
 import { BLOCK_EXPLORER_TX_URL, type Asset } from '@/lib/contracts'
+import { formatAmount } from '@/lib/format'
 import { TxFlowModal } from '@/components/shared/TxFlowModal'
 import { AssetAmountRow } from '@/components/shared/AssetAmountRow'
-import { SwapDetailRows } from '@/components/trade/SwapDetailRows'
 import { TxFlowAnimation } from '@/components/shared/TxFlowAnimation'
 
-export type SwapModalPhase = 'review' | 'sending' | 'success' | 'error'
+export type AddLiquidityModalPhase = 'review' | 'sending' | 'success' | 'error'
 
-interface SwapReviewModalProps {
+interface AddLiquidityReviewModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    phase: SwapModalPhase
-    sellAsset: Asset
-    buyAsset: Asset
-    sellDisplay: string
-    buyDisplay: string
-    rate: number | undefined
-    priceImpact: number | undefined
-    activeSide: 'sell' | 'buy'
-    slippageBps: number
-    amountOutMin: bigint | undefined
-    amountInMax: bigint | undefined
+    phase: AddLiquidityModalPhase
+    tokenA: Asset
+    tokenB: Asset
+    amountADisplay: string
+    amountBDisplay: string
+    pairExists: boolean
+    amountAMin: bigint
+    amountBMin: bigint
     hash: `0x${string}` | undefined
     onConfirm: () => void
 }
 
-// Popup review sebelum swap dikirim — dibuka programatik dari SwapCard saat tombol "Swap" diklik
-// (bukan langsung kirim tx). Fase 'review'/'sending'/'success'/'error' diturunkan dari status swapTx
-// di SwapCard. Dikunci selama 'sending' lewat TxFlowModal.
-export const SwapReviewModal: React.FC<SwapReviewModalProps> = ({
+// Popup review sebelum supply dikirim — sama pola SwapReviewModal. Fase 'review'/'sending'/'success'/'error'
+// diturunkan dari status supplyTx di AddLiquidityForm. Dikunci selama 'sending' lewat TxFlowModal.
+export const AddLiquidityReviewModal: React.FC<AddLiquidityReviewModalProps> = ({
     open,
     onOpenChange,
     phase,
-    sellAsset,
-    buyAsset,
-    sellDisplay,
-    buyDisplay,
-    rate,
-    priceImpact,
-    activeSide,
-    slippageBps,
-    amountOutMin,
-    amountInMax,
+    tokenA,
+    tokenB,
+    amountADisplay,
+    amountBDisplay,
+    pairExists,
+    amountAMin,
+    amountBMin,
     hash,
     onConfirm,
 }) => {
-    const title = phase === 'review' ? 'Review Swap' : `Swap ${sellAsset.symbol}`
+    const title = phase === 'review' ? 'Review Supply' : 'Add Liquidity'
 
     return (
-        <TxFlowModal
-            open={open}
-            onOpenChange={onOpenChange}
-            locked={phase === 'sending'}
-            title={title}
-            minWidthClassName="min-w-[380px]"
-        >
+        <TxFlowModal open={open} onOpenChange={onOpenChange} locked={phase === 'sending'} title={title}>
             {phase === 'sending' && (
                 <div className="flex flex-col items-center gap-3 py-6 text-center">
                     <TxFlowAnimation status="sending" />
-                    <p className="text-white font-medium">Confirming your swap...</p>
+                    <p className="text-white font-medium">Confirming your supply...</p>
                 </div>
             )}
 
             {phase === 'error' && (
                 <div className="flex flex-col items-center gap-3 py-6 text-center">
                     <TxFlowAnimation status="error" />
-                    <p className="text-red-400 font-medium">Swap failed or was rejected</p>
+                    <p className="text-red-400 font-medium">Supply failed or was rejected</p>
                     <button
                         type="button"
                         onClick={onConfirm}
@@ -83,24 +70,17 @@ export const SwapReviewModal: React.FC<SwapReviewModalProps> = ({
                 <div className="flex flex-col gap-4 py-2">
                     <div className="flex flex-col items-center gap-2 text-center">
                         <TxFlowAnimation status="success" />
-                        <p className="text-emerald-400 font-semibold text-lg">Swap Successful!</p>
+                        <p className="text-emerald-400 font-semibold text-lg">Liquidity Added!</p>
                     </div>
 
                     <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col gap-3">
-                        <AssetAmountRow asset={sellAsset} amount={sellDisplay} />
+                        <AssetAmountRow asset={tokenA} amount={amountADisplay} />
                         <div className="flex items-center justify-start pl-8 -my-1">
                             <div className="p-1.5 rounded-lg bg-white/5 text-gray-400">
-                                <ArrowDown className="w-4 h-4" />
+                                <Plus className="w-4 h-4" />
                             </div>
                         </div>
-                        <AssetAmountRow asset={buyAsset} amount={buyDisplay} />
-                    </div>
-
-                    <div className="flex justify-between items-center text-xs text-gray-400 px-1">
-                        <span>Rate</span>
-                        <span className="text-white font-medium">
-                            {rate ? `1 ${sellAsset.symbol} = ${rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${buyAsset.symbol}` : '—'}
-                        </span>
+                        <AssetAmountRow asset={tokenB} amount={amountBDisplay} />
                     </div>
 
                     {hash && (
@@ -127,39 +107,33 @@ export const SwapReviewModal: React.FC<SwapReviewModalProps> = ({
 
             {phase === 'review' && (
                 <div className="flex flex-col gap-3 py-2">
-                    <AssetAmountRow asset={sellAsset} amount={sellDisplay} />
+                    <AssetAmountRow asset={tokenA} amount={amountADisplay} />
                     <div className="flex items-center justify-start pl-8 -my-1">
                         <div className="p-1.5 rounded-lg bg-white/5 text-gray-400">
-                            <ArrowDown className="w-4 h-4" />
+                            <Plus className="w-4 h-4" />
                         </div>
                     </div>
-                    <AssetAmountRow asset={buyAsset} amount={buyDisplay} />
+                    <AssetAmountRow asset={tokenB} amount={amountBDisplay} />
 
-                    <div className="mt-1 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs">
-                        <div className="flex justify-between items-center text-gray-400">
-                            <span>Rate</span>
-                            <span className="text-white font-medium">
-                                {rate ? `1 ${sellAsset.symbol} = ${rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${buyAsset.symbol}` : '—'}
-                            </span>
+                    {pairExists && (
+                        <div className="mt-1 pt-3 border-t border-white/10 flex flex-col gap-2 text-xs">
+                            <div className="flex justify-between items-center text-gray-400">
+                                <span>Minimum {tokenA.symbol}</span>
+                                <span className="text-gray-300">{formatAmount(amountAMin)} {tokenA.symbol}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-gray-400">
+                                <span>Minimum {tokenB.symbol}</span>
+                                <span className="text-gray-300">{formatAmount(amountBMin)} {tokenB.symbol}</span>
+                            </div>
                         </div>
-                        <SwapDetailRows
-                            sellAsset={sellAsset}
-                            buyAsset={buyAsset}
-                            buyDisplay={buyDisplay}
-                            priceImpact={priceImpact}
-                            activeSide={activeSide}
-                            slippageBps={slippageBps}
-                            amountOutMin={amountOutMin}
-                            amountInMax={amountInMax}
-                        />
-                    </div>
+                    )}
 
                     <button
                         type="button"
                         onClick={onConfirm}
                         className="btn-accent w-full text-white font-semibold text-base py-3 rounded-2xl transition-all active:scale-[0.99] mt-1"
                     >
-                        Confirm Swap
+                        Confirm Supply
                     </button>
                 </div>
             )}
