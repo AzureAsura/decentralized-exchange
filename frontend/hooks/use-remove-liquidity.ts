@@ -155,8 +155,10 @@ export function useRemoveLiquidity(pairAddress: `0x${string}` | undefined) {
                     deadline,
                 },
             })
-            const { v, r, s } = parseSignature(signature)
-            const request = buildPermitRemoveRequest(Number(v), r, s, deadline)
+            // yParity selalu ada (0/1) walau `v` kadang undefined tergantung wallet — 27+yParity
+            // selalu setara v yang benar, jadi dipakai langsung daripada gantung ke field `v`.
+            const { r, s, yParity } = parseSignature(signature)
+            const request = buildPermitRemoveRequest(27 + yParity, r, s, deadline)
             if (!request) return
             removeTx.send(request)
         } catch {
