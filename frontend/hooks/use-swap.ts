@@ -179,6 +179,15 @@ export function useSwap() {
         swapTx.send(request)
     }
 
+    // Dipanggil pas popup sukses ditutup — balikin form ke kosong dan lepas status sukses
+    // yang nempel di swapTx, biar tombol utama nggak nyangkut permanen di "Swap complete!".
+    const resetSwapForm = () => {
+        setSellInput('')
+        setBuyInput('')
+        setActiveSide('sell')
+        swapTx.reset()
+    }
+
     const isQuoting = activeSide === 'sell' ? isQuotingOut : isQuotingIn
     const rate =
         parsedSellAmount && parsedBuyAmount && parsedSellAmount > BigInt(0)
@@ -202,6 +211,7 @@ export function useSwap() {
         handleSelectBuyAsset,
         handleApprove,
         handleSwap,
+        resetSwapForm,
         hasEnteredValues,
         isInsufficientBalance,
         isQuoting,

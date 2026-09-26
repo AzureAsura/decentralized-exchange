@@ -37,6 +37,7 @@ export const SwapCard: React.FC = () => {
         handleSelectBuyAsset,
         handleApprove,
         handleSwap,
+        resetSwapForm,
         hasEnteredValues,
         isInsufficientBalance,
         isQuoting,
@@ -60,6 +61,15 @@ export const SwapCard: React.FC = () => {
     const handleSwapClick = () => {
         swapTx.reset()
         setIsSwapModalOpen(true)
+    }
+
+    // Nutup popup abis swap sukses -> reset form (input balik kosong, tombol utama lepas dari "Swap complete!").
+    // Nutup karena batal/error di tengah jalan -> biarin form tetap ada, biar user bisa retry/edit.
+    const handleSwapModalOpenChange = (open: boolean) => {
+        setIsSwapModalOpen(open)
+        if (!open && swapTx.isSuccess) {
+            resetSwapForm()
+        }
     }
 
     const approveStatus: TxFlowStatus = approveTx.error ? 'error' : approveTx.isSuccess ? 'success' : 'sending'
@@ -217,7 +227,7 @@ export const SwapCard: React.FC = () => {
 
             <SwapReviewModal
                 open={isSwapModalOpen}
-                onOpenChange={setIsSwapModalOpen}
+                onOpenChange={handleSwapModalOpenChange}
                 phase={swapPhase}
                 sellAsset={sellAsset}
                 buyAsset={buyAsset}

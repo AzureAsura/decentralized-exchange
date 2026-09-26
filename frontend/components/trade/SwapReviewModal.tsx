@@ -104,7 +104,7 @@ const SwapReviewBody: React.FC<Omit<SwapReviewModalProps, 'open' | 'onOpenChange
 
                 <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col gap-3">
                     <SwapSummaryRow asset={sellAsset} amount={sellDisplay} />
-                    <div className="flex items-center justify-center -my-1">
+                    <div className="flex items-center justify-start pl-8 -my-1">
                         <div className="p-1.5 rounded-lg bg-white/5 text-gray-400">
                             <ArrowDown className="w-4 h-4" />
                         </div>
@@ -145,7 +145,7 @@ const SwapReviewBody: React.FC<Omit<SwapReviewModalProps, 'open' | 'onOpenChange
     return (
         <div className="flex flex-col gap-3 py-2">
             <SwapSummaryRow asset={sellAsset} amount={sellDisplay} />
-            <div className="flex items-center justify-center -my-1">
+            <div className="flex items-center justify-start pl-8 -my-1">
                 <div className="p-1.5 rounded-lg bg-white/5 text-gray-400">
                     <ArrowDown className="w-4 h-4" />
                 </div>
