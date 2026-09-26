@@ -11,7 +11,7 @@ import { TokenInputCard } from '@/components/trade/TokenInputCard'
 import { SwapDetails } from '@/components/trade/SwapDetails'
 import { ApproveStatusModal } from '@/components/trade/ApproveStatusModal'
 import { SwapReviewModal, type SwapModalPhase } from '@/components/trade/SwapReviewModal'
-import type { TxFlowStatus } from '@/components/trade/TxFlowAnimation'
+import type { TxFlowStatus } from '@/components/shared/TxFlowAnimation'
 
 export const SwapCard: React.FC = () => {
     const { isConnected } = useAccount()
