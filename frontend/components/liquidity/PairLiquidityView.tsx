@@ -37,18 +37,19 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
     sendingLabel,
     hash,
     handleConfirmRemove,
-    resetRemoveFlow,
+    resetTxState,
+    resetAfterSuccess,
   } = useRemoveLiquidity(pairAddress)
 
   const handleRemoveModalOpenChange = (open: boolean) => {
     setIsRemoveModalOpen(open)
     if (!open && phase === 'success') {
-      resetRemoveFlow()
+      resetAfterSuccess()
     }
   }
 
   const handleRemoveClick = () => {
-    resetRemoveFlow()
+    resetTxState()
     setIsRemoveModalOpen(true)
   }
 

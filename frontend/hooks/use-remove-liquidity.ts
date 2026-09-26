@@ -172,7 +172,15 @@ export function useRemoveLiquidity(pairAddress: `0x${string}` | undefined) {
         }
     }
 
-    const resetRemoveFlow = () => {
+    // Dipanggil pas modal DIBUKA — cuma bersihin status tx lama, JANGAN sentuh removePercent
+    // (itu pilihan user yang lagi mau di-eksekusi, bukan sesuatu yang harus di-reset di sini).
+    const resetTxState = () => {
+        approveTx.reset()
+        removeTx.reset()
+    }
+
+    // Dipanggil pas modal DITUTUP setelah sukses — form beneran balik ke awal.
+    const resetAfterSuccess = () => {
         setRemovePercent(0)
         approveTx.reset()
         removeTx.reset()
@@ -208,6 +216,7 @@ export function useRemoveLiquidity(pairAddress: `0x${string}` | undefined) {
         sendingLabel,
         hash: removeTx.hash,
         handleConfirmRemove,
-        resetRemoveFlow,
+        resetTxState,
+        resetAfterSuccess,
     }
 }
