@@ -14,21 +14,28 @@ import { usePairReserves } from '@/hooks/use-pair-reserves'
 import { useSettings } from '@/hooks/use-settings'
 import { useTransaction } from '@/hooks/use-transaction'
 
-// Alamat WBNB di-map balik ke NATIVE_BNB (address null) — link "Add more liquidity" dari
-// /liquidity/[pair] ngirim token0/token1 on-chain (WBNB, bukan null) lewat query param.
-const resolveAssetFromAddress = (addr: string | null, fallback: Asset): Asset => {
+// Alamat WBNB di-map balik ke NATIVE_BNB (address null) — dipakai baik dari query param
+// (/liquidity/new?tokenA=...) maupun override langsung (embed di halaman /liquidity/[pair]).
+const resolveAssetFromAddress = (addr: string | null | undefined, fallback: Asset): Asset => {
     if (!addr) return fallback
     if (addr.toLowerCase() === WBNB_ADDRESS.toLowerCase()) return NATIVE_BNB
     return ASSETS.find((a) => a.address?.toLowerCase() === addr.toLowerCase()) ?? fallback
 }
 
-export function useAddLiquidity() {
+// initialTokenA/BAddress: override eksplisit (dipakai saat di-embed di halaman pair, dikunci ke
+// token pair itu) — kalau nggak dikasih, fallback ke query param (?tokenA=&tokenB=, dipakai
+// /liquidity/new dari link "Add more liquidity").
+export function useAddLiquidity(initialTokenAAddress?: string, initialTokenBAddress?: string) {
     const { address } = useAccount()
     const { slippageBps, deadlineMinutes } = useSettings()
     const searchParams = useSearchParams()
 
-    const [tokenA, setTokenA] = useState<Asset>(() => resolveAssetFromAddress(searchParams.get('tokenA'), NATIVE_BNB))
-    const [tokenB, setTokenB] = useState<Asset>(() => resolveAssetFromAddress(searchParams.get('tokenB'), TEST_TOKENS[0]))
+    const [tokenA, setTokenA] = useState<Asset>(() =>
+        resolveAssetFromAddress(initialTokenAAddress ?? searchParams.get('tokenA'), NATIVE_BNB)
+    )
+    const [tokenB, setTokenB] = useState<Asset>(() =>
+        resolveAssetFromAddress(initialTokenBAddress ?? searchParams.get('tokenB'), TEST_TOKENS[0])
+    )
     // Kalau pair BELUM ada: dua-duanya independen (persis behavior lama, user bebas nentuin rasio/harga awal).
     // Kalau pair SUDAH ada: activeSide nentuin sisi mana yang "sumber", sisi lain di-derive dari quote() —
     // sama pola dengan use-swap.ts, bisa di-override manual begitu user fokus ke sisi yang di-derive.

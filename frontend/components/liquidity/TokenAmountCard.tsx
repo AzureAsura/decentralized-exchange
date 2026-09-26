@@ -3,6 +3,7 @@ import { formatUnits } from 'viem'
 import { ASSETS, type Asset } from '@/lib/contracts'
 import { AssetSelectModal } from '@/components/shared/AssetSelectModal'
 import { TokenSelectButton } from '@/components/shared/TokenSelectButton'
+import { TokenIcon } from '@/components/shared/TokenIcon'
 
 interface TokenAmountCardProps {
     label: string
@@ -13,6 +14,9 @@ interface TokenAmountCardProps {
     onAmountChange: (value: string) => void
     onFocus?: () => void
     balance?: { value: bigint; decimals: number }
+    // Dipakai kalau card ini di-embed di halaman pair spesifik — token-nya udah ditentukan
+    // sama pair itu, jadi dropdown pilih token disembunyikan (cuma badge statis).
+    locked?: boolean
 }
 
 export const TokenAmountCard: React.FC<TokenAmountCardProps> = ({
@@ -24,6 +28,7 @@ export const TokenAmountCard: React.FC<TokenAmountCardProps> = ({
     onAmountChange,
     onFocus,
     balance,
+    locked,
 }) => (
     <div onClick={onFocus} className="rounded-2xl md:rounded-[1.2vw] px-4 md:px-[1.4vw] py-3 md:py-[0.9vw] card cursor-text">
         <span className="text-gray-400 text-xs md:text-[0.9vw] font-medium block mb-1">{label}</span>
@@ -36,12 +41,21 @@ export const TokenAmountCard: React.FC<TokenAmountCardProps> = ({
                 placeholder="0.0"
                 className="bg-transparent text-3xl md:text-[2.8vw] font-bold outline-none w-[55%] tracking-tight leading-none text-white placeholder-gray-600"
             />
-            <AssetSelectModal
-                assets={ASSETS}
-                excludeSymbol={excludeSymbol}
-                onSelect={onSelect}
-                trigger={<TokenSelectButton symbol={asset.symbol} />}
-            />
+            {locked ? (
+                <div className="flex items-center gap-2 md:gap-[0.5vw] card-light rounded-full py-1.5 md:py-[0.4vw] px-3 md:px-[0.9vw] backdrop-blur-md shrink-0">
+                    <div className="w-6 h-6 md:w-[1.6vw] md:h-[1.6vw] rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
+                        <TokenIcon symbol={asset.symbol} className="w-6 h-6 md:w-[1.6vw] md:h-[1.6vw]" />
+                    </div>
+                    <span className="text-sm md:text-[1.1vw] font-[600] text-white tracking-tight">{asset.symbol}</span>
+                </div>
+            ) : (
+                <AssetSelectModal
+                    assets={ASSETS}
+                    excludeSymbol={excludeSymbol}
+                    onSelect={onSelect}
+                    trigger={<TokenSelectButton symbol={asset.symbol} />}
+                />
+            )}
         </div>
         {balance && (
             <span className="text-gray-500 text-xs md:text-[0.8vw]">

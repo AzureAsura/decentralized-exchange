@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { ArrowLeft, Plus } from 'lucide-react'
+import React, { Suspense, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useAccount } from 'wagmi'
 import { useCorrectNetwork } from '@/hooks/use-correct-network'
@@ -9,6 +9,7 @@ import { usePairPosition } from '@/hooks/use-pair-position'
 import { useRemoveLiquidity } from '@/hooks/use-remove-liquidity'
 import { TokenIcon } from '@/components/shared/TokenIcon'
 import { TxActionButton } from '@/components/shared/TxActionButton'
+import { AddLiquidityForm } from '@/components/liquidity/AddLiquidityForm'
 import { RemoveLiquidityReviewModal } from '@/components/liquidity/RemoveLiquidityReviewModal'
 import { formatAmount } from '@/lib/format'
 
@@ -106,18 +107,20 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
         </div>
 
         {tab === 'add' ? (
-          <>
+          token0 && token1 ? (
+            <Suspense fallback={null}>
+              <AddLiquidityForm
+                initialTokenAAddress={token0}
+                initialTokenBAddress={token1}
+                locked
+                hideFooterText
+              />
+            </Suspense>
+          ) : (
             <p className="text-gray-400 text-sm md:text-[0.95vw] text-center px-2 md:px-[1vw] py-6 md:py-[2vw]">
-              Add more {displaySymbol(symbol0)}/{displaySymbol(symbol1)} liquidity from the Add Liquidity page.
+              Loading pair...
             </p>
-            <Link
-              href={token0 && token1 ? `/liquidity/new?tokenA=${token0}&tokenB=${token1}` : '/liquidity/new'}
-              className="btn-color w-full flex items-center justify-center gap-2 text-white font-semibold text-base md:text-[1.1vw] py-3 md:py-[0.8vw] rounded-2xl transition-all active:scale-[0.99]"
-            >
-              <Plus className="w-4 h-4" />
-              Add more liquidity
-            </Link>
-          </>
+          )
         ) : (
           <>
             {/* POSISI ANDA */}

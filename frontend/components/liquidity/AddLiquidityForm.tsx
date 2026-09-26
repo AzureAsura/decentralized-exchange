@@ -13,7 +13,22 @@ import { TxActionButton } from '@/components/shared/TxActionButton'
 import type { TxFlowStatus } from '@/components/shared/TxFlowAnimation'
 import type { Asset } from '@/lib/contracts'
 
-export const AddLiquidityForm: React.FC = () => {
+interface AddLiquidityFormProps {
+    // Dipakai kalau di-embed di halaman pair spesifik (/liquidity/[pair]) — token dikunci ke
+    // pair itu (dropdown disembunyikan) dan teks footer soal "pair baru" disembunyikan karena
+    // udah pasti pair-nya ada.
+    initialTokenAAddress?: string
+    initialTokenBAddress?: string
+    locked?: boolean
+    hideFooterText?: boolean
+}
+
+export const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({
+    initialTokenAAddress,
+    initialTokenBAddress,
+    locked = false,
+    hideFooterText = false,
+}) => {
     const { isConnected } = useAccount()
     const { isWrongNetwork, isSwitching, switchToCorrectNetwork } = useCorrectNetwork()
     const [isApproveModalOpen, setIsApproveModalOpen] = useState(false)
@@ -52,7 +67,7 @@ export const AddLiquidityForm: React.FC = () => {
         parsedAmountB,
         approveTx,
         supplyTx,
-    } = useAddLiquidity()
+    } = useAddLiquidity(initialTokenAAddress, initialTokenBAddress)
 
     const handleApproveClick = (asset: Asset, amount: bigint) => {
         approveTx.reset()
@@ -98,6 +113,7 @@ export const AddLiquidityForm: React.FC = () => {
                     onAmountChange={setAmountAInput}
                     onFocus={handleFocusA}
                     balance={tokenABalance}
+                    locked={locked}
                 />
 
                 <div className="relative h-2 md:h-[0.6vw] flex items-center justify-center -my-1 md:my-[-0.2vw] z-20">
@@ -115,6 +131,7 @@ export const AddLiquidityForm: React.FC = () => {
                     onAmountChange={setAmountBInput}
                     onFocus={handleFocusB}
                     balance={tokenBBalance}
+                    locked={locked}
                 />
 
                 {pairExists && reserveA !== undefined && reserveB !== undefined && reserveA > BigInt(0) && (
@@ -174,10 +191,12 @@ export const AddLiquidityForm: React.FC = () => {
                 </div>
             </div>
 
-            <p className="relative z-10 text-gray-400 text-xs md:text-[1vw] w-full max-w-[360px] md:max-w-[32vw] text-center mt-6 md:mt-[1.5vw] leading-relaxed">
-                If this pair already has liquidity, your amounts are automatically adjusted to match the current price —
-                the ratio you enter only sets the price for a brand-new pair.
-            </p>
+            {!hideFooterText && (
+                <p className="relative z-10 text-gray-400 text-xs md:text-[1vw] w-full max-w-[360px] md:max-w-[32vw] text-center mt-6 md:mt-[1.5vw] leading-relaxed">
+                    If this pair already has liquidity, your amounts are automatically adjusted to match the current price —
+                    the ratio you enter only sets the price for a brand-new pair.
+                </p>
+            )}
 
             <ApproveStatusModal
                 open={isApproveModalOpen}
