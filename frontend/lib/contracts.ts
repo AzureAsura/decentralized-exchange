@@ -1,5 +1,6 @@
 export const FACTORY_ADDRESS = '0x38776F00e11F4903dc0eC717b87e418CD7Aa6De0' as const
 export const WBNB_ADDRESS = '0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd' as const
+export const BLOCK_EXPLORER_TX_URL = 'https://testnet.bscscan.com/tx/' as const
 
 export const factoryAbi = [
   { type: 'function', name: 'allPairsLength', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },

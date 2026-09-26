@@ -48,5 +48,6 @@ export function useTransaction(toastId: string, messages: UseTransactionMessages
         isSuccess: mutation.isSuccess,
         error: mutation.error,
         reset: mutation.reset,
+        hash: mutation.data,
     }
 }

@@ -1,8 +1,8 @@
 'use client'
 
 import React from 'react'
-import { ArrowDown } from 'lucide-react'
-import type { Asset } from '@/lib/contracts'
+import { ArrowDown, ExternalLink } from 'lucide-react'
+import { BLOCK_EXPLORER_TX_URL, type Asset } from '@/lib/contracts'
 import { useMediaQuery } from '@/hooks/use-media-query'
 import {
     Dialog,
@@ -36,6 +36,7 @@ interface SwapReviewModalProps {
     slippageBps: number
     amountOutMin: bigint | undefined
     amountInMax: bigint | undefined
+    hash: `0x${string}` | undefined
     onConfirm: () => void
 }
 
@@ -49,7 +50,7 @@ const SwapSummaryRow: React.FC<{ asset: Asset; amount: string }> = ({ asset, amo
     </div>
 )
 
-const SwapReviewBody: React.FC<Omit<SwapReviewModalProps, 'open' | 'onOpenChange'>> = ({
+const SwapReviewBody: React.FC<Omit<SwapReviewModalProps, 'open' | 'onOpenChange'> & { onClose: () => void }> = ({
     phase,
     sellAsset,
     buyAsset,
@@ -61,31 +62,79 @@ const SwapReviewBody: React.FC<Omit<SwapReviewModalProps, 'open' | 'onOpenChange
     slippageBps,
     amountOutMin,
     amountInMax,
+    hash,
     onConfirm,
+    onClose,
 }) => {
-    if (phase !== 'review') {
+    if (phase === 'sending') {
         return (
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
-                <TxFlowAnimation status={phase} />
-                {phase === 'sending' && <p className="text-white font-medium">Confirming your swap...</p>}
-                {phase === 'success' && (
-                    <>
-                        <p className="text-emerald-400 font-semibold">Swap successful!</p>
-                        <p className="text-gray-400 text-sm">{sellDisplay} {sellAsset.symbol} → {buyDisplay} {buyAsset.symbol}</p>
-                    </>
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+                <TxFlowAnimation status="sending" />
+                <p className="text-white font-medium">Confirming your swap...</p>
+            </div>
+        )
+    }
+
+    if (phase === 'error') {
+        return (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+                <TxFlowAnimation status="error" />
+                <p className="text-red-400 font-medium">Swap failed or was rejected</p>
+                <button
+                    type="button"
+                    onClick={onConfirm}
+                    className="btn-accent text-white font-semibold px-6 py-2 rounded-xl transition-all active:scale-95"
+                >
+                    Try Again
+                </button>
+            </div>
+        )
+    }
+
+    if (phase === 'success') {
+        return (
+            <div className="flex flex-col gap-4 py-2">
+                <div className="flex flex-col items-center gap-2 text-center">
+                    <TxFlowAnimation status="success" />
+                    <p className="text-emerald-400 font-semibold text-lg">Swap Successful!</p>
+                </div>
+
+                <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col gap-3">
+                    <SwapSummaryRow asset={sellAsset} amount={sellDisplay} />
+                    <div className="flex items-center justify-center -my-1">
+                        <div className="p-1.5 rounded-lg bg-white/5 text-gray-400">
+                            <ArrowDown className="w-4 h-4" />
+                        </div>
+                    </div>
+                    <SwapSummaryRow asset={buyAsset} amount={buyDisplay} />
+                </div>
+
+                <div className="flex justify-between items-center text-xs text-gray-400 px-1">
+                    <span>Rate</span>
+                    <span className="text-white font-medium">
+                        {rate ? `1 ${sellAsset.symbol} = ${rate.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${buyAsset.symbol}` : '—'}
+                    </span>
+                </div>
+
+                {hash && (
+                    <a
+                        href={`${BLOCK_EXPLORER_TX_URL}${hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-1.5 text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors"
+                    >
+                        View on BscScan
+                        <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
                 )}
-                {phase === 'error' && (
-                    <>
-                        <p className="text-red-400 font-medium">Swap failed or was rejected</p>
-                        <button
-                            type="button"
-                            onClick={onConfirm}
-                            className="btn-accent text-white font-semibold px-6 py-2 rounded-xl transition-all active:scale-95"
-                        >
-                            Try Again
-                        </button>
-                    </>
-                )}
+
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="btn-color w-full text-white font-semibold text-base py-3 rounded-2xl transition-all active:scale-[0.99]"
+                >
+                    Close
+                </button>
             </div>
         )
     }
@@ -155,7 +204,7 @@ export const SwapReviewModal: React.FC<SwapReviewModalProps> = (props) => {
                     <DialogHeader className="pb-1">
                         <DialogTitle className="text-lg font-semibold text-white tracking-tight">{title}</DialogTitle>
                     </DialogHeader>
-                    <SwapReviewBody {...props} />
+                    <SwapReviewBody {...props} onClose={() => onOpenChange(false)} />
                 </DialogContent>
             </Dialog>
         )
@@ -168,7 +217,7 @@ export const SwapReviewModal: React.FC<SwapReviewModalProps> = (props) => {
                 <DrawerHeader className="p-0 pb-2 text-left">
                     <DrawerTitle className="text-xl font-semibold text-white">{title}</DrawerTitle>
                 </DrawerHeader>
-                <SwapReviewBody {...props} />
+                <SwapReviewBody {...props} onClose={() => onOpenChange(false)} />
             </DrawerContent>
         </Drawer>
     )

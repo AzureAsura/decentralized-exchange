@@ -6,6 +6,6 @@ export const config = createConfig({
   chains: [bscTestnet],
   connectors: [injected()],
   transports: {
-    [bscTestnet.id]: http(),
+    [bscTestnet.id]: http(process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL),
   },
 })

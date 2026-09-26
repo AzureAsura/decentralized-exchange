@@ -191,7 +191,7 @@ export const SwapCard: React.FC = () => {
                             idleLabel: quoteError ? 'Insufficient liquidity' : hasEnteredValues ? 'Swap' : 'Enter an amount',
                             onSubmit: handleSwapClick,
                         }}
-                        submitVariant="accent"
+                        submitVariant={hasEnteredValues ? 'accent' : 'primary'}
                     />
                 </div>
             </div>
@@ -218,6 +218,7 @@ export const SwapCard: React.FC = () => {
                 slippageBps={slippageBps}
                 amountOutMin={amountOutMin}
                 amountInMax={amountInMax}
+                hash={swapTx.hash}
                 onConfirm={handleSwap}
             />
         </div>
