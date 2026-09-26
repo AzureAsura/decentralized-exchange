@@ -6,7 +6,6 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAccount, useBalance, useDisconnect } from 'wagmi'
 import { formatUnits } from 'viem'
-import { toast } from 'sonner'
 import { Copy, Check, Menu, X } from 'lucide-react'
 import { ConnectWalletModal } from '@/components/shared/ConnectWalletModal'
 import { SettingsModal } from '@/components/shared/SettingsModal'
@@ -19,7 +18,7 @@ const Navbar = () => {
     const { address, isConnected, chain } = useAccount()
     const { disconnect } = useDisconnect()
     const { data: balance } = useBalance({ address })
-    const { isWrongNetwork, isSwitching, switchError, switchToCorrectNetwork } = useCorrectNetwork()
+    const { isWrongNetwork, isSwitching, switchToCorrectNetwork } = useCorrectNetwork()
     const [isOtherAppsOpen, setIsOtherAppsOpen] = useState(false)
     const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -45,10 +44,6 @@ const Navbar = () => {
     useEffect(() => {
         setIsMobileMenuOpen(false)
     }, [pathname])
-
-    useEffect(() => {
-        if (switchError) toast.error('Failed to switch network')
-    }, [switchError])
 
     const handleCopyAddress = () => {
         if (!address) return

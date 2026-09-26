@@ -68,7 +68,7 @@ const TokenAmountCard: React.FC<TokenAmountCardProps> = ({
 
 const NewPoolPage = () => {
   const { address, isConnected } = useAccount()
-  const { isWrongNetwork, isSwitching, switchError, switchToCorrectNetwork } = useCorrectNetwork()
+  const { isWrongNetwork, isSwitching, switchToCorrectNetwork } = useCorrectNetwork()
 
   const [tokenA, setTokenA] = useState<Asset>(NATIVE_BNB)
   const [tokenB, setTokenB] = useState<Asset>(TEST_TOKENS[0])
@@ -159,10 +159,6 @@ const NewPoolPage = () => {
   useEffect(() => {
     if (supplyError) toast.error('Supply failed or was rejected', { id: 'supply' })
   }, [supplyError])
-
-  useEffect(() => {
-    if (switchError) toast.error('Failed to switch network')
-  }, [switchError])
 
   const handleSelectTokenA = (asset: Asset) => {
     setTokenA(asset)

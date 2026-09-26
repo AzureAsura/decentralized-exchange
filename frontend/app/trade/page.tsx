@@ -30,7 +30,7 @@ const resolvePathAddress = (asset: Asset): `0x${string}` => asset.address ?? WBN
 
 const Page = () => {
     const { address, isConnected } = useAccount()
-    const { isWrongNetwork, isSwitching, switchError, switchToCorrectNetwork } = useCorrectNetwork()
+    const { isWrongNetwork, isSwitching, switchToCorrectNetwork } = useCorrectNetwork()
     const { slippageBps, deadlineMinutes } = useSettings()
 
     const [sellAsset, setSellAsset] = useState<Asset>(ASSETS[0])
@@ -166,10 +166,6 @@ const Page = () => {
     useEffect(() => {
         if (swapError) toast.error('Swap failed or was rejected', { id: 'swap' })
     }, [swapError])
-
-    useEffect(() => {
-        if (switchError) toast.error('Failed to switch network')
-    }, [switchError])
 
     // Price impact — dibandingin ke spot price reserve, bukan cuma tampilan statis
     const { exists: pairExists, reserveA, reserveB } = usePairReserves(path[0], path[1])
