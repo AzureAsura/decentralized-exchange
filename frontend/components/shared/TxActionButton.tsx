@@ -20,8 +20,7 @@ interface SubmitAction {
 }
 
 interface TxActionButtonProps {
-    // Bagian yang beda persis antar halaman (ukuran font/radius trade vs liquidity/new) — bukan disatuin,
-    // dijaga lewat prop supaya tampilannya identik dengan sebelum refactor.
+
     sizeClassName: string
     isConnected: boolean
     isWrongNetwork: boolean
@@ -31,12 +30,10 @@ interface TxActionButtonProps {
     successContent: React.ReactNode
     approvalSteps: ApprovalStep[]
     submit: SubmitAction
-    // 'accent' dipakai Swap di /trade biar beda dari tombol Approve — /liquidity/new nggak pass ini, tetap biru.
     submitVariant?: 'primary' | 'accent'
 }
 
-// Rantai tombol Connect Wallet -> Switch Network -> Approve (tiap step, urut) -> Submit,
-// dipakai persis sama di /trade dan /liquidity/new (dulu ditulis 2x).
+
 export const TxActionButton: React.FC<TxActionButtonProps> = ({
     sizeClassName,
     isConnected,

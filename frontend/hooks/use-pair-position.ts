@@ -4,9 +4,6 @@ import { erc20Abi } from 'viem'
 import { useAccount, useReadContract } from 'wagmi'
 import { pairAbi } from '@/lib/contracts'
 
-// Beda dari use-pair-reserves.ts (reserve buat 1 pasangan token generik, dipakai /trade & Add
-// Liquidity) — ini baca posisi user di 1 pair SPESIFIK (LP balance, share, pooled amount), buat
-// halaman /liquidity/[pair].
 export function usePairPosition(pairAddress: `0x${string}` | undefined) {
     const { address } = useAccount()
     const enabled = Boolean(pairAddress)

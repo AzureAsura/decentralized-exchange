@@ -10,8 +10,6 @@ interface TxFlowAnimationProps {
     status: TxFlowStatus
 }
 
-// Ikon "pesawat kertas" (Send, dari lucide-react yang sudah dipakai di project ini) terbang loop
-// selama sending, cross-fade ke checkmark/x begitu tx selesai.
 export const TxFlowAnimation: React.FC<TxFlowAnimationProps> = ({ status }) => (
     <div className="relative flex items-center justify-center h-20 w-20 mx-auto">
         <AnimatePresence mode="wait">

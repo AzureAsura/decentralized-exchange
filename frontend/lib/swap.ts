@@ -12,7 +12,9 @@ interface BuildSwapRequestParams {
     activeSide: 'sell' | 'buy'
     sellAsset: Asset
     buyAsset: Asset
-    path: readonly [`0x${string}`, `0x${string}`]
+    // Bisa lebih dari 2 elemen sekarang (multi-hop routing, lihat hooks/use-swap-route.ts) — Router
+    // udah dari awal nerima path: address[] (arbitrary length), cuma tipe TS-nya yang perlu dilonggarin.
+    path: readonly `0x${string}`[]
     to: `0x${string}`
     deadline: bigint
     amountOutMin: bigint | undefined
@@ -21,7 +23,6 @@ interface BuildSwapRequestParams {
     parsedBuyAmount: bigint | undefined
 }
 
-// Tabel 6 fungsi swap Router — dipilih dari kombinasi native/ERC20 di tiap sisi + activeSide.
 export function buildSwapRequest({
     activeSide,
     sellAsset,

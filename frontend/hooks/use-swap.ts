@@ -4,31 +4,51 @@ import { useMemo, useState } from 'react'
 import { keepPreviousData } from '@tanstack/react-query'
 import { erc20Abi, formatUnits } from 'viem'
 import { useAccount, useReadContract } from 'wagmi'
-import { ASSETS, ROUTER_ADDRESS, routerAbi, type Asset } from '@/lib/contracts'
+import { ASSETS, ROUTER_ADDRESS, WBNB_ADDRESS, routerAbi, type Asset } from '@/lib/contracts'
 import { safeParseEther } from '@/lib/format'
 import { applySlippageMax, applySlippageMin, buildSwapRequest, resolvePathAddress } from '@/lib/swap'
 import { useAllowance } from '@/hooks/use-allowance'
 import { useAssetBalance } from '@/hooks/use-asset-balance'
+import { useImportedTokens } from '@/hooks/use-imported-tokens'
 import { usePairReserves } from '@/hooks/use-pair-reserves'
 import { useSettings } from '@/hooks/use-settings'
+import { useSwapRoute } from '@/hooks/use-swap-route'
 import { useTransaction } from '@/hooks/use-transaction'
+
+const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`
 
 export function useSwap() {
     const { address } = useAccount()
     const { slippageBps, deadlineMinutes } = useSettings()
+    const { importedTokens } = useImportedTokens()
 
     const [sellAsset, setSellAsset] = useState<Asset>(ASSETS[0])
     const [buyAsset, setBuyAsset] = useState<Asset>(ASSETS[1])
-    // Raw teks yang diketik user — cuma "berlaku" buat sisi yang lagi aktif (activeSide).
-    // Sisi yang nggak aktif nilainya DIDERIVE dari hasil quote, bukan di-setState via effect.
+
     const [sellInput, setSellInput] = useState('')
     const [buyInput, setBuyInput] = useState('')
     const [activeSide, setActiveSide] = useState<'sell' | 'buy'>('sell')
 
-    const path = useMemo(
-        () => [resolvePathAddress(sellAsset), resolvePathAddress(buyAsset)] as const,
-        [sellAsset, buyAsset]
-    )
+    // Pathfinding (graph umum, bukan cuma via-BNB) — cari rute lewat pair APAPUN yang ada di
+    // Factory, bukan cuma pasangan langsung sellAsset/buyAsset. Kalau pair langsung ADA, BFS di
+    // dalamnya SELALU balikin itu duluan (jarak 1), jadi swap yang udah jalan sekarang nggak
+    // pernah ke-reroute — lihat lib/routing.ts.
+    const {
+        path: routedPath,
+        routeExists,
+        isMultiHop,
+        isLoading: isLoadingRoute,
+    } = useSwapRoute(sellAsset, buyAsset)
+    const path = routedPath ?? [resolvePathAddress(sellAsset), resolvePathAddress(buyAsset)]
+
+    const resolveHopSymbol = (addr: `0x${string}`) => {
+        if (addr.toLowerCase() === WBNB_ADDRESS.toLowerCase()) return 'BNB'
+        return (
+            [...ASSETS, ...importedTokens].find((a) => a.address?.toLowerCase() === addr.toLowerCase())?.symbol ??
+            shortenAddress(addr)
+        )
+    }
+    const routeSymbols = isMultiHop ? path.map(resolveHopSymbol) : undefined
 
     const typedSellAmount = activeSide === 'sell' ? safeParseEther(sellInput) : undefined
     const typedBuyAmount = activeSide === 'buy' ? safeParseEther(buyInput) : undefined
@@ -36,7 +56,6 @@ export function useSwap() {
     const sellBalance = useAssetBalance(sellAsset, address)
     const buyBalance = useAssetBalance(buyAsset, address)
 
-    // Quote — exact-in (jual) pakai getAmountsOut, exact-out (beli) pakai getAmountsIn
     const {
         data: amountsOut,
         isFetching: isQuotingOut,
@@ -46,7 +65,11 @@ export function useSwap() {
         abi: routerAbi,
         functionName: 'getAmountsOut',
         args: typedSellAmount !== undefined ? [typedSellAmount, path] : undefined,
-        query: { enabled: activeSide === 'sell' && typedSellAmount !== undefined, retry: false, placeholderData: keepPreviousData },
+        query: {
+            enabled: activeSide === 'sell' && typedSellAmount !== undefined && routeExists,
+            retry: false,
+            placeholderData: keepPreviousData,
+        },
     })
 
     const {
@@ -58,20 +81,36 @@ export function useSwap() {
         abi: routerAbi,
         functionName: 'getAmountsIn',
         args: typedBuyAmount !== undefined ? [typedBuyAmount, path] : undefined,
-        query: { enabled: activeSide === 'buy' && typedBuyAmount !== undefined, retry: false, placeholderData: keepPreviousData },
+        query: {
+            enabled: activeSide === 'buy' && typedBuyAmount !== undefined && routeExists,
+            retry: false,
+            placeholderData: keepPreviousData,
+        },
     })
 
     const quoteError = activeSide === 'sell' ? amountsOutError : amountsInError
 
-    // Amount efektif dipakai di seluruh kalkulasi di bawah (approval/swap/price impact) —
-    // sisi aktif dari input langsung, sisi pasif diderive dari quote. Nggak ada effect sama sekali.
     const derivedBuyAmount = activeSide === 'sell' ? amountsOut?.[amountsOut.length - 1] : undefined
     const derivedSellAmount = activeSide === 'buy' ? amountsIn?.[0] : undefined
     const parsedSellAmount = activeSide === 'sell' ? typedSellAmount : derivedSellAmount
     const parsedBuyAmount = activeSide === 'buy' ? typedBuyAmount : derivedBuyAmount
 
-    const sellDisplay = activeSide === 'sell' ? sellInput : derivedSellAmount !== undefined ? formatUnits(derivedSellAmount, 18) : ''
-    const buyDisplay = activeSide === 'buy' ? buyInput : derivedBuyAmount !== undefined ? formatUnits(derivedBuyAmount, 18) : ''
+    const sellDisplay =
+        activeSide === 'sell'
+            ? sellInput
+            : typedBuyAmount === undefined
+              ? ''
+              : derivedSellAmount !== undefined
+                ? formatUnits(derivedSellAmount, 18)
+                : ''
+    const buyDisplay =
+        activeSide === 'buy'
+            ? buyInput
+            : typedSellAmount === undefined
+              ? ''
+              : derivedBuyAmount !== undefined
+                ? formatUnits(derivedBuyAmount, 18)
+                : ''
 
     const slippageBpsBig = BigInt(slippageBps)
     const amountOutMin =
@@ -101,8 +140,13 @@ export function useSwap() {
         errorMessage: 'Swap failed or was rejected',
     })
 
-    // Price impact — dibandingin ke spot price reserve, bukan cuma tampilan statis
-    const { exists: pairExists, reserveA, reserveB } = usePairReserves(path[0], path[1])
+    // Price impact cuma dihitung buat rute langsung (1 pair) — multi-hop butuh gabungan reserve
+    // dari SEMUA pair di path, di luar scope sekarang. SwapDetailRows.tsx udah nge-render "—" kalau
+    // priceImpact undefined, jadi nggak perlu perubahan di situ.
+    const { exists: pairExists, reserveA, reserveB } = usePairReserves(
+        !isMultiHop ? path[0] : undefined,
+        !isMultiHop ? path[1] : undefined
+    )
     const effectiveAmountIn = activeSide === 'sell' ? parsedSellAmount : amountsIn?.[0]
     const effectiveAmountOut = activeSide === 'sell' ? amountsOut?.[amountsOut.length - 1] : parsedBuyAmount
 
@@ -120,8 +164,6 @@ export function useSwap() {
     const isInsufficientBalance =
         parsedSellAmount !== undefined && sellBalance !== undefined && parsedSellAmount > sellBalance.value
 
-    // Pindah sisi aktif TANPA nge-blank-in angka yang lagi ditampilin —
-    // "bawa" nilai yang lagi kelihatan jadi input awal sisi yang baru diklik.
     const handleFocusSell = () => {
         if (activeSide !== 'sell') {
             setSellInput(sellDisplay)
@@ -179,8 +221,7 @@ export function useSwap() {
         swapTx.send(request)
     }
 
-    // Dipanggil pas popup sukses ditutup — balikin form ke kosong dan lepas status sukses
-    // yang nempel di swapTx, biar tombol utama nggak nyangkut permanen di "Swap complete!".
+
     const resetSwapForm = () => {
         setSellInput('')
         setBuyInput('')
@@ -224,5 +265,9 @@ export function useSwap() {
         needsApproval: allowance.needsApproval,
         approveTx,
         swapTx,
+        routeExists,
+        isMultiHop,
+        isLoadingRoute,
+        routeSymbols,
     }
 }

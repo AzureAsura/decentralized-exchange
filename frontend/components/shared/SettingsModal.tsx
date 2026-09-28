@@ -22,7 +22,7 @@ interface SettingsModalProps {
   trigger: React.ReactNode
 }
 
-const SLIPPAGE_PRESETS_BPS = [10, 50, 100] // 0.1% / 0.5% / 1%
+const SLIPPAGE_PRESETS_BPS = [10, 50, 100] 
 
 const bpsToPercentLabel = (bps: number) => `${(bps / 100).toFixed(bps % 100 === 0 ? 0 : 1)}%`
 
@@ -33,7 +33,6 @@ interface ModalContentProps {
   setDeadlineMinutes: (minutes: number) => void
 }
 
-// ISI KONTEN UTAMA MODAL / DRAWER
 const ModalContent: React.FC<ModalContentProps> = ({
   slippageBps,
   setSlippageBps,
@@ -116,7 +115,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ trigger }) => {
 
   const contentProps = { slippageBps, setSlippageBps, deadlineMinutes, setDeadlineMinutes }
 
-  // DESKTOP DIALOG
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={setOpen}>
@@ -131,7 +129,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ trigger }) => {
     )
   }
 
-  // MOBILE DRAWER
   return (
     <Drawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger render={trigger as React.ReactElement} />

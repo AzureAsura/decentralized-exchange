@@ -12,8 +12,6 @@ interface ApproveStatusModalProps {
     onRetry: () => void
 }
 
-// Popup status approve — dibuka programatik dari SwapCard (open/onOpenChange terkontrol dari luar,
-// bukan useState lokal). Dikunci selama status 'sending' lewat TxFlowModal.
 export const ApproveStatusModal: React.FC<ApproveStatusModalProps> = ({ open, onOpenChange, symbol, status, onRetry }) => (
     <TxFlowModal open={open} onOpenChange={onOpenChange} locked={status === 'sending'} title={`Approve ${symbol}`}>
         <div className="flex flex-col items-center gap-3 py-4 text-center">

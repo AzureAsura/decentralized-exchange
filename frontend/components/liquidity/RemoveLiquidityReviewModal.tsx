@@ -16,21 +16,21 @@ interface RemoveLiquidityReviewModalProps {
     sendingLabel: string
     symbol0: string
     symbol1: string
+    logoUrl0?: string
+    logoUrl1?: string
     receive0: bigint
     receive1: bigint
     hash: `0x${string}` | undefined
     onConfirm: () => void
 }
 
-// WBNB ditampilin sebagai "BNB" di UI — konsisten sama Swap/Add Liquidity yang selalu pakai
-// simbol native, walau reserve on-chain-nya secara teknis WBNB.
 const displaySymbol = (symbol: string) => (symbol === 'WBNB' ? 'BNB' : symbol)
 
-const ReceiveRow: React.FC<{ symbol: string; amount: bigint }> = ({ symbol, amount }) => (
+const ReceiveRow: React.FC<{ symbol: string; imageUrl?: string; amount: bigint }> = ({ symbol, imageUrl, amount }) => (
     <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-                <TokenIcon symbol={displaySymbol(symbol)} className="w-6 h-6" />
+                <TokenIcon symbol={displaySymbol(symbol)} imageUrl={imageUrl} className="w-6 h-6" />
             </div>
             <span className="text-sm font-medium text-white">{displaySymbol(symbol)}</span>
         </div>
@@ -38,9 +38,6 @@ const ReceiveRow: React.FC<{ symbol: string; amount: bigint }> = ({ symbol, amou
     </div>
 )
 
-// Popup review sebelum remove liquidity dikirim — sama pola SwapReviewModal/AddLiquidityReviewModal.
-// `sendingLabel` dinamis karena alurnya bisa 1 langkah (permit) atau 2 langkah (approve + remove
-// klasik, kalau user nolak tanda tangan permit) — lihat use-remove-liquidity.ts.
 export const RemoveLiquidityReviewModal: React.FC<RemoveLiquidityReviewModalProps> = ({
     open,
     onOpenChange,
@@ -48,6 +45,8 @@ export const RemoveLiquidityReviewModal: React.FC<RemoveLiquidityReviewModalProp
     sendingLabel,
     symbol0,
     symbol1,
+    logoUrl0,
+    logoUrl1,
     receive0,
     receive1,
     hash,
@@ -86,8 +85,8 @@ export const RemoveLiquidityReviewModal: React.FC<RemoveLiquidityReviewModalProp
                     </div>
 
                     <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col gap-3">
-                        <ReceiveRow symbol={symbol0} amount={receive0} />
-                        <ReceiveRow symbol={symbol1} amount={receive1} />
+                        <ReceiveRow symbol={symbol0} imageUrl={logoUrl0} amount={receive0} />
+                        <ReceiveRow symbol={symbol1} imageUrl={logoUrl1} amount={receive1} />
                     </div>
 
                     {hash && (
@@ -116,8 +115,8 @@ export const RemoveLiquidityReviewModal: React.FC<RemoveLiquidityReviewModalProp
                 <div className="flex flex-col gap-3 py-2">
                     <span className="text-gray-400 text-xs font-medium">You will receive</span>
                     <div className="rounded-2xl bg-white/5 border border-white/5 p-3 flex flex-col gap-3">
-                        <ReceiveRow symbol={symbol0} amount={receive0} />
-                        <ReceiveRow symbol={symbol1} amount={receive1} />
+                        <ReceiveRow symbol={symbol0} imageUrl={logoUrl0} amount={receive0} />
+                        <ReceiveRow symbol={symbol1} imageUrl={logoUrl1} amount={receive1} />
                     </div>
                     <p className="text-gray-500 text-xs">
                         Usually just 1 signature (permit). If it&apos;s rejected, this automatically falls back to

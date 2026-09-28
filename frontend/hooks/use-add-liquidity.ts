@@ -10,16 +10,18 @@ import { safeParseEther } from '@/lib/format'
 import { applySlippageMin, resolvePathAddress } from '@/lib/swap'
 import { useAllowance } from '@/hooks/use-allowance'
 import { useAssetBalance } from '@/hooks/use-asset-balance'
+import { useImportedTokens } from '@/hooks/use-imported-tokens'
 import { usePairReserves } from '@/hooks/use-pair-reserves'
 import { useSettings } from '@/hooks/use-settings'
 import { useTransaction } from '@/hooks/use-transaction'
 
 // Alamat WBNB di-map balik ke NATIVE_BNB (address null) — dipakai baik dari query param
 // (/liquidity/new?tokenA=...) maupun override langsung (embed di halaman /liquidity/[pair]).
-const resolveAssetFromAddress = (addr: string | null | undefined, fallback: Asset): Asset => {
+// extraAssets: token custom yang udah di-import user (Phase 4), dicari juga selain ASSETS bawaan.
+const resolveAssetFromAddress = (addr: string | null | undefined, fallback: Asset, extraAssets: Asset[]): Asset => {
     if (!addr) return fallback
     if (addr.toLowerCase() === WBNB_ADDRESS.toLowerCase()) return NATIVE_BNB
-    return ASSETS.find((a) => a.address?.toLowerCase() === addr.toLowerCase()) ?? fallback
+    return [...ASSETS, ...extraAssets].find((a) => a.address?.toLowerCase() === addr.toLowerCase()) ?? fallback
 }
 
 // initialTokenA/BAddress: override eksplisit (dipakai saat di-embed di halaman pair, dikunci ke
@@ -29,16 +31,15 @@ export function useAddLiquidity(initialTokenAAddress?: string, initialTokenBAddr
     const { address } = useAccount()
     const { slippageBps, deadlineMinutes } = useSettings()
     const searchParams = useSearchParams()
+    const { importedTokens } = useImportedTokens()
 
     const [tokenA, setTokenA] = useState<Asset>(() =>
-        resolveAssetFromAddress(initialTokenAAddress ?? searchParams.get('tokenA'), NATIVE_BNB)
+        resolveAssetFromAddress(initialTokenAAddress ?? searchParams.get('tokenA'), NATIVE_BNB, importedTokens)
     )
     const [tokenB, setTokenB] = useState<Asset>(() =>
-        resolveAssetFromAddress(initialTokenBAddress ?? searchParams.get('tokenB'), TEST_TOKENS[0])
+        resolveAssetFromAddress(initialTokenBAddress ?? searchParams.get('tokenB'), TEST_TOKENS[0], importedTokens)
     )
-    // Kalau pair BELUM ada: dua-duanya independen (persis behavior lama, user bebas nentuin rasio/harga awal).
-    // Kalau pair SUDAH ada: activeSide nentuin sisi mana yang "sumber", sisi lain di-derive dari quote() —
-    // sama pola dengan use-swap.ts, bisa di-override manual begitu user fokus ke sisi yang di-derive.
+
     const [amountAInput, setAmountAInput] = useState('')
     const [amountBInput, setAmountBInput] = useState('')
     const [activeSide, setActiveSide] = useState<'a' | 'b'>('a')
@@ -88,9 +89,21 @@ export function useAddLiquidity(initialTokenAAddress?: string, initialTokenBAddr
     const parsedAmountB = !pairExists ? typedAmountB : activeSide === 'b' ? typedAmountB : quotedB
 
     const amountADisplay =
-        !pairExists || activeSide === 'a' ? amountAInput : quotedA !== undefined ? formatUnits(quotedA, 18) : ''
+        !pairExists || activeSide === 'a'
+            ? amountAInput
+            : typedAmountB === undefined
+              ? ''
+              : quotedA !== undefined
+                ? formatUnits(quotedA, 18)
+                : ''
     const amountBDisplay =
-        !pairExists || activeSide === 'b' ? amountBInput : quotedB !== undefined ? formatUnits(quotedB, 18) : ''
+        !pairExists || activeSide === 'b'
+            ? amountBInput
+            : typedAmountA === undefined
+              ? ''
+              : quotedB !== undefined
+                ? formatUnits(quotedB, 18)
+                : ''
 
     const hasValidAmounts = parsedAmountA !== undefined && parsedAmountB !== undefined
 
@@ -101,8 +114,7 @@ export function useAddLiquidity(initialTokenAAddress?: string, initialTokenBAddr
     const isInsufficientBalance = isInsufficientBalanceA || isInsufficientBalanceB
 
     const slippageBpsBig = BigInt(slippageBps)
-    // First-deposit (pair belum ada): amountMin = 0, nggak ada rasio yang bisa dilindungi —
-    // itu yang justru dipakai user buat nentuin harga awal pool.
+
     const amountAMin = pairExists && parsedAmountA !== undefined ? applySlippageMin(parsedAmountA, slippageBpsBig) : BigInt(0)
     const amountBMin = pairExists && parsedAmountB !== undefined ? applySlippageMin(parsedAmountB, slippageBpsBig) : BigInt(0)
 
@@ -132,8 +144,7 @@ export function useAddLiquidity(initialTokenAAddress?: string, initialTokenBAddr
         errorMessage: 'Supply failed or was rejected',
     })
 
-    // Pindah sisi aktif TANPA nge-blank-in angka yang lagi ditampilin — sama pola use-swap.ts.
-    // Kalau pair belum ada, dua sisi udah independen dari awal, nggak perlu switch apa-apa.
+
     const handleFocusA = () => {
         if (pairExists && activeSide !== 'a') {
             setAmountAInput(amountADisplay)
@@ -191,7 +202,6 @@ export function useAddLiquidity(initialTokenAAddress?: string, initialTokenBAddr
         }
     }
 
-    // Dipanggil pas popup sukses ditutup — sama pola resetSwapForm di use-swap.ts.
     const resetSupplyForm = () => {
         setAmountAInput('')
         setAmountBInput('')

@@ -1,8 +1,12 @@
-import React from 'react'
+'use client'
+
+import React, { useState } from 'react'
 
 interface TokenIconProps {
   symbol: string
   className?: string
+
+  imageUrl?: string
 }
 
 const TOKEN_IMAGES: Record<string, string> = {
@@ -10,8 +14,10 @@ const TOKEN_IMAGES: Record<string, string> = {
   GST: '/gojo.jpg',
 }
 
-// LOGO ETH/BNB RESMI, RST/GST PAKAI FOTO CUSTOM, TOKEN LAIN FALLBACK KE HURUF PERTAMA
-export const TokenIcon: React.FC<TokenIconProps> = ({ symbol, className }) => {
+
+export const TokenIcon: React.FC<TokenIconProps> = ({ symbol, className, imageUrl }) => {
+  const [remoteFailed, setRemoteFailed] = useState(false)
+
   if (symbol === 'ETH') {
     return (
       <svg className={className} viewBox="0 0 784 1277" fill="white">
@@ -43,6 +49,18 @@ export const TokenIcon: React.FC<TokenIconProps> = ({ symbol, className }) => {
   if (image) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={image} alt={symbol} className={`${className ?? ''} rounded-full object-cover`} />
+  }
+
+  if (imageUrl && !remoteFailed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={symbol}
+        className={`${className ?? ''} rounded-full object-cover`}
+        onError={() => setRemoteFailed(true)}
+      />
+    )
   }
 
   return <span className="font-bold text-white">{symbol[0]}</span>

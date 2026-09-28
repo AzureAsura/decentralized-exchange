@@ -4,9 +4,10 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useAccount, useBalance, useDisconnect } from 'wagmi'
 import { formatUnits } from 'viem'
-import { Copy, Check, Menu, X } from 'lucide-react'
+import { Copy, Check, Menu, X, Home } from 'lucide-react'
 import { ConnectWalletModal } from '@/components/shared/ConnectWalletModal'
 import { SettingsModal } from '@/components/shared/SettingsModal'
 import { useCorrectNetwork } from '@/hooks/use-correct-network'
@@ -27,13 +28,11 @@ const Navbar = () => {
     const dropdownRef = useRef<HTMLDivElement>(null)
     const accountMenuRef = useRef<HTMLDivElement>(null)
 
-    // wagmi selalu balikin isConnected=false pas SSR, lalu auto-reconnect di client bisa selesai
-    // sebelum hydration kelar — beda HTML server vs client bikin hydration mismatch kalau nggak digate.
+
     useEffect(() => {
         setMounted(true)
     }, [])
 
-    // Menutup dropdown saat klik di luar
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -64,7 +63,7 @@ const Navbar = () => {
             <nav className="fixed top-0 left-0 w-full z-50 transition-all card">
                 <div className="px-3 md:px-0 md:w-[95vw] mx-auto rounded-xl py-3 md:py-4 flex items-center shadow-2xl">
                     <div className="flex items-center justify-between w-full gap-2">
-                        {/* Logo Section */}
+
                         <Link href={'/'} className="flex items-center gap-2 cursor-pointer group shrink-0">
                             <Image src={'https://nirmala-finance-cpt.vercel.app/logo.svg'} alt='logo' height={32} width={32} className="md:w-[35px] md:h-[35px]" priority />
                             <div className="flex flex-col justify-between leading-none">
@@ -77,11 +76,21 @@ const Navbar = () => {
                             </div>
                         </Link>
 
-                        {/* Desktop Navigation */}
                         <div className="hidden lg:flex items-center card p-1.5 rounded-2xl">
                             <Link
+                                href="/"
+                                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all ${pathname === '/'
+                                    ? 'text-white btn-color shadow-lg shadow-blue-500/20'
+                                    : 'text-gray-400 hover:text-white'
+                                    }`}
+                            >
+                                <Home className="w-4 h-4" />
+                                <span>Home</span>
+                            </Link>
+
+                            <Link
                                 href="/trade"
-                                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all ${pathname === '/trade' || pathname === '/'
+                                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all ${pathname === '/trade'
                                     ? 'text-white btn-color shadow-lg shadow-blue-500/20'
                                     : 'text-gray-400 hover:text-white'
                                     }`}
@@ -150,9 +159,8 @@ const Navbar = () => {
                             </div>
                         </div>
 
-                        {/* Right Action Buttons */}
                         <div className="flex items-center gap-2 shrink-0">
-                            {/* Tombol GitHub (Desktop) */}
+
                             <Link
                                 href="https://github.com/AzureAsura/blockchain-multiwinner-lottery"
                                 target="_blank"
@@ -164,7 +172,6 @@ const Navbar = () => {
                                 </svg>
                             </Link>
 
-                            {/* Tombol Connect Wallet / Account */}
                             {mounted && isConnected && isWrongNetwork ? (
                                 <button
                                     type="button"
@@ -184,7 +191,6 @@ const Navbar = () => {
                                         {truncateAddress(address)}
                                     </button>
 
-                                    {/* Account Dropdown */}
                                     {isAccountMenuOpen && (
                                         <div className="absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] max-w-[280px] sm:w-72 bg-[#0b0e17] p-3 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.9)] border border-blue-500/30 ring-1 ring-white/10 z-50 flex flex-col gap-3">
                                             <span className="text-xs text-gray-400">
@@ -261,70 +267,138 @@ const Navbar = () => {
                             <button
                                 type="button"
                                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                className="lg:hidden h-9 w-9 md:h-10 md:w-10 flex items-center justify-center rounded-xl card text-white transition-all active:scale-95 shrink-0"
+                                className="lg:hidden h-9 w-9 md:h-10 md:w-10 flex items-center justify-center rounded-xl card text-white transition-all active:scale-95 shrink-0 overflow-hidden"
                                 aria-label="Toggle Navigation Menu"
                             >
-                                {isMobileMenuOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Menu className="w-4 h-4 md:w-5 md:h-5" />}
+                                <AnimatePresence mode="wait" initial={false}>
+                                    {isMobileMenuOpen ? (
+                                        <motion.span
+                                            key="close"
+                                            initial={{ rotate: -90, opacity: 0 }}
+                                            animate={{ rotate: 0, opacity: 1 }}
+                                            exit={{ rotate: 90, opacity: 0 }}
+                                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                            className="flex"
+                                        >
+                                            <X className="w-4 h-4 md:w-5 md:h-5" />
+                                        </motion.span>
+                                    ) : (
+                                        <motion.span
+                                            key="open"
+                                            initial={{ rotate: 90, opacity: 0 }}
+                                            animate={{ rotate: 0, opacity: 1 }}
+                                            exit={{ rotate: -90, opacity: 0 }}
+                                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                            className="flex"
+                                        >
+                                            <Menu className="w-4 h-4 md:w-5 md:h-5" />
+                                        </motion.span>
+                                    )}
+                                </AnimatePresence>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Mobile Dropdown Navigation Menu */}
-                {isMobileMenuOpen && (
-                    <div className="lg:hidden border-t border-white/10 px-4 py-3 bg-[#0b0e17]/95 backdrop-blur-xl flex flex-col gap-2">
-                        <Link
-                            href="/trade"
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${pathname === '/trade' || pathname === '/'
-                                ? 'text-white btn-color'
-                                : 'text-gray-400 hover:text-white'
-                                }`}
+                <AnimatePresence>
+                    {isMobileMenuOpen && (
+                        <motion.div
+                            key="mobile-menu"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                            className="lg:hidden overflow-hidden border-t border-white/10 bg-[#0b0e17]/95 backdrop-blur-xl"
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            </svg>
-                            <span>Trade</span>
-                        </Link>
+                            <div className="px-4 py-3 flex flex-col gap-2">
+                                <motion.div
+                                    initial={{ opacity: 0, x: -8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.05, duration: 0.2 }}
+                                >
+                                    <Link
+                                        href="/"
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${pathname === '/'
+                                            ? 'text-white btn-color'
+                                            : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        <Home className="w-4 h-4" />
+                                        <span>Home</span>
+                                    </Link>
+                                </motion.div>
 
-                        <Link
-                            href="/liquidity"
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${pathname?.startsWith('/liquidity')
-                                ? 'text-white btn-color'
-                                : 'text-gray-400 hover:text-white'
-                                }`}
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m9-9H3" />
-                            </svg>
-                            <span>Pool</span>
-                        </Link>
+                                <motion.div
+                                    initial={{ opacity: 0, x: -8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.1, duration: 0.2 }}
+                                >
+                                    <Link
+                                        href="/trade"
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${pathname === '/trade'
+                                            ? 'text-white btn-color'
+                                            : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                        </svg>
+                                        <span>Trade</span>
+                                    </Link>
+                                </motion.div>
 
-                        <div className="pt-2 border-t border-white/5 flex flex-col gap-1">
-                            <span className="text-xs text-gray-500 font-semibold px-2 mb-1">Other Apps</span>
-                            <Link
-                                href="https://nirmala-lottery.vercel.app"
-                                target="_blank"
-                                className="flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white"
-                            >
-                                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                                </svg>
-                                <span>Lottery</span>
-                            </Link>
+                                <motion.div
+                                    initial={{ opacity: 0, x: -8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.15, duration: 0.2 }}
+                                >
+                                    <Link
+                                        href="/liquidity"
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${pathname?.startsWith('/liquidity')
+                                            ? 'text-white btn-color'
+                                            : 'text-gray-400 hover:text-white'
+                                            }`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18m9-9H3" />
+                                        </svg>
+                                        <span>Pool</span>
+                                    </Link>
+                                </motion.div>
 
-                            <Link
-                                href="https://nirmala-finance-cpt.vercel.app"
-                                target="_blank"
-                                className="flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white"
-                            >
-                                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
-                                <span>Crypto Price Tracker</span>
-                            </Link>
-                        </div>
-                    </div>
-                )}
+                                <motion.div
+                                    initial={{ opacity: 0, x: -8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.2, duration: 0.2 }}
+                                    className="pt-2 border-t border-white/5 flex flex-col gap-1"
+                                >
+                                    <span className="text-xs text-gray-500 font-semibold px-2 mb-1">Other Apps</span>
+                                    <Link
+                                        href="https://nirmala-lottery.vercel.app"
+                                        target="_blank"
+                                        className="flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white"
+                                    >
+                                        <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                                        </svg>
+                                        <span>Lottery</span>
+                                    </Link>
+
+                                    <Link
+                                        href="https://nirmala-finance-cpt.vercel.app"
+                                        target="_blank"
+                                        className="flex items-center gap-2.5 px-4 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white"
+                                    >
+                                        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                        </svg>
+                                        <span>Crypto Price Tracker</span>
+                                    </Link>
+                                </motion.div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </nav>
         </>
     )

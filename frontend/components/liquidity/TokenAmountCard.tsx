@@ -14,8 +14,7 @@ interface TokenAmountCardProps {
     onAmountChange: (value: string) => void
     onFocus?: () => void
     balance?: { value: bigint; decimals: number }
-    // Dipakai kalau card ini di-embed di halaman pair spesifik — token-nya udah ditentukan
-    // sama pair itu, jadi dropdown pilih token disembunyikan (cuma badge statis).
+
     locked?: boolean
 }
 
@@ -44,7 +43,7 @@ export const TokenAmountCard: React.FC<TokenAmountCardProps> = ({
             {locked ? (
                 <div className="flex items-center gap-2 md:gap-[0.5vw] card-light rounded-full py-1.5 md:py-[0.4vw] px-3 md:px-[0.9vw] backdrop-blur-md shrink-0">
                     <div className="w-6 h-6 md:w-[1.6vw] md:h-[1.6vw] rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-                        <TokenIcon symbol={asset.symbol} className="w-6 h-6 md:w-[1.6vw] md:h-[1.6vw]" />
+                        <TokenIcon symbol={asset.symbol} imageUrl={asset.logoUrl} className="w-6 h-6 md:w-[1.6vw] md:h-[1.6vw]" />
                     </div>
                     <span className="text-sm md:text-[1.1vw] font-[600] text-white tracking-tight">{asset.symbol}</span>
                 </div>
@@ -53,7 +52,7 @@ export const TokenAmountCard: React.FC<TokenAmountCardProps> = ({
                     assets={ASSETS}
                     excludeSymbol={excludeSymbol}
                     onSelect={onSelect}
-                    trigger={<TokenSelectButton symbol={asset.symbol} />}
+                    trigger={<TokenSelectButton symbol={asset.symbol} imageUrl={asset.logoUrl} />}
                 />
             )}
         </div>

@@ -11,11 +11,9 @@ interface SwapDetailRowsProps {
     slippageBps: number
     amountOutMin: bigint | undefined
     amountInMax: bigint | undefined
+    routeSymbols?: string[]
 }
 
-// 3 baris detail (Expected Output / Price Impact / Minimum received-Maximum sent) — dipakai
-// SwapDetails.tsx (panel di kartu utama) dan SwapReviewModal.tsx (popup konfirmasi), supaya
-// threshold warna price impact & label slippage nggak digandakan di dua tempat.
 export const SwapDetailRows: React.FC<SwapDetailRowsProps> = ({
     sellAsset,
     buyAsset,
@@ -25,8 +23,15 @@ export const SwapDetailRows: React.FC<SwapDetailRowsProps> = ({
     slippageBps,
     amountOutMin,
     amountInMax,
+    routeSymbols,
 }) => (
     <>
+        {routeSymbols && routeSymbols.length > 2 && (
+            <div className="flex justify-between items-center text-gray-400">
+                <span>Route</span>
+                <span className="text-white font-medium">{routeSymbols.join(' → ')}</span>
+            </div>
+        )}
         <div className="flex justify-between items-center text-gray-400">
             <span>Expected Output</span>
             <span className="text-white font-semibold">{buyDisplay} {buyAsset.symbol}</span>

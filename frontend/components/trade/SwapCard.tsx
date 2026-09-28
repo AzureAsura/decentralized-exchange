@@ -50,6 +50,9 @@ export const SwapCard: React.FC = () => {
         needsApproval,
         approveTx,
         swapTx,
+        routeExists,
+        isLoadingRoute,
+        routeSymbols,
     } = useSwap()
 
     const handleApproveClick = () => {
@@ -63,8 +66,6 @@ export const SwapCard: React.FC = () => {
         setIsSwapModalOpen(true)
     }
 
-    // Nutup popup abis swap sukses -> reset form (input balik kosong, tombol utama lepas dari "Swap complete!").
-    // Nutup karena batal/error di tengah jalan -> biarin form tetap ada, biar user bisa retry/edit.
     const handleSwapModalOpenChange = (open: boolean) => {
         setIsSwapModalOpen(open)
         if (!open && swapTx.isSuccess) {
@@ -84,10 +85,8 @@ export const SwapCard: React.FC = () => {
     return (
         <div className="relative min-h-screen w-full bg-transparent text-white flex flex-col items-center justify-center overflow-hidden font-sans select-none p-4 md:p-[2vw]">
 
-            {/* CONTAINER WIDGET */}
             <div className="card relative z-10 w-full max-w-[420px] md:max-w-none md:w-[32vw] md:min-w-[340px] rounded-3xl md:rounded-[1.6vw] p-2 md:p-[0.55vw] transition-all duration-300">
 
-                {/* HEADER WIDGET (SWAP + SETTING) */}
                 <div className="flex items-center justify-between px-3 md:px-[0.8vw] pt-2 md:pt-[0.4vw] pb-2 md:pb-[0.5vw]">
                     <span className="text-base md:text-[1.1vw] font-bold text-white tracking-tight">Swap</span>
                     <SettingsModal
@@ -119,7 +118,6 @@ export const SwapCard: React.FC = () => {
                     balance={sellBalance}
                 />
 
-                {/* SWAP BUTTON */}
                 <div className="relative h-2 md:h-[0.6vw] flex items-center justify-center -my-1 md:my-[-0.2vw] z-20">
                     <div className="relative h-3 md:h-[0.8vw] flex items-center justify-center -my-1.5 md:my-[-0.35vw] z-20">
                         <button
@@ -145,7 +143,6 @@ export const SwapCard: React.FC = () => {
                     balance={buyBalance}
                 />
 
-                {/* DETAIL SWAP (real, bukan mockup lagi) */}
                 {hasEnteredValues && (
                     <SwapDetails
                         isDetailsOpen={isDetailsOpen}
@@ -160,11 +157,18 @@ export const SwapCard: React.FC = () => {
                         slippageBps={slippageBps}
                         amountOutMin={amountOutMin}
                         amountInMax={amountInMax}
+                        routeSymbols={routeSymbols}
                     />
                 )}
 
-                {/* STATUS — error approve/swap sekarang ditampilkan di dalam popup masing-masing */}
-                {isInsufficientBalance ? (
+                {/* STATUS — error approve/swap sekarang ditampilkan di dalam popup masing-masing.
+                    "No route" dicek independen dari hasEnteredValues, biar ketauan begitu user milih
+                    2 token yang nggak nyambung, sebelum sempet ngetik amount & nunggu quote gagal. */}
+                {!isLoadingRoute && !routeExists ? (
+                    <p className="text-red-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.5vw]">
+                        No route available between {sellAsset.symbol} and {buyAsset.symbol}.
+                    </p>
+                ) : isInsufficientBalance ? (
                     <p className="text-red-400 text-xs md:text-[0.85vw] text-center mt-2 md:mt-[0.5vw]">
                         Insufficient {sellAsset.symbol} balance.
                     </p>
@@ -174,7 +178,6 @@ export const SwapCard: React.FC = () => {
                     </p>
                 ) : null}
 
-                {/* BUTTON ACTION */}
                 <div className="mt-2 md:mt-[0.4vw]">
                     <TxActionButton
                         sizeClassName="text-base md:text-[1.15vw] py-3 md:py-[0.85vw] rounded-2xl md:rounded-[1.2vw]"
@@ -199,17 +202,24 @@ export const SwapCard: React.FC = () => {
                             },
                         ]}
                         submit={{
-                            disabled: !hasEnteredValues || isInsufficientBalance || isQuoting || Boolean(quoteError),
+                            disabled:
+                                !hasEnteredValues ||
+                                isInsufficientBalance ||
+                                isQuoting ||
+                                Boolean(quoteError) ||
+                                (!isLoadingRoute && !routeExists),
                             isPending: swapTx.isPending,
                             isConfirming: swapTx.isConfirming,
                             confirmingLabel: 'Swapping...',
                             idleLabel: isInsufficientBalance
                                 ? 'Insufficient balance'
-                                : quoteError
-                                    ? 'Insufficient liquidity'
-                                    : hasEnteredValues
-                                        ? 'Swap'
-                                        : 'Enter an amount',
+                                : !isLoadingRoute && !routeExists
+                                    ? 'No route available'
+                                    : quoteError
+                                        ? 'Insufficient liquidity'
+                                        : hasEnteredValues
+                                            ? 'Swap'
+                                            : 'Enter an amount',
                             onSubmit: handleSwapClick,
                         }}
                         submitVariant={hasEnteredValues && !isInsufficientBalance ? 'accent' : 'primary'}
@@ -241,6 +251,7 @@ export const SwapCard: React.FC = () => {
                 amountInMax={amountInMax}
                 hash={swapTx.hash}
                 onConfirm={handleSwap}
+                routeSymbols={routeSymbols}
             />
         </div>
     )

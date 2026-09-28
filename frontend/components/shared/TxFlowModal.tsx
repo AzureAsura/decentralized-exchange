@@ -27,8 +27,6 @@ interface TxFlowModalProps {
     children: React.ReactNode
 }
 
-// Shell responsif Dialog(desktop)/Drawer(mobile) buat popup status transaksi (approve/swap/add/remove
-// liquidity) — dikunci (X disembunyikan, backdrop/escape diabaikan) selama `locked`.
 export const TxFlowModal: React.FC<TxFlowModalProps> = ({
     open,
     onOpenChange,

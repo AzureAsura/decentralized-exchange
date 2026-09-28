@@ -5,16 +5,19 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useAccount } from 'wagmi'
 import { useCorrectNetwork } from '@/hooks/use-correct-network'
+import { useImportedTokens } from '@/hooks/use-imported-tokens'
 import { usePairPosition } from '@/hooks/use-pair-position'
 import { useRemoveLiquidity } from '@/hooks/use-remove-liquidity'
 import { TokenIcon } from '@/components/shared/TokenIcon'
 import { TxActionButton } from '@/components/shared/TxActionButton'
 import { AddLiquidityForm } from '@/components/liquidity/AddLiquidityForm'
 import { RemoveLiquidityReviewModal } from '@/components/liquidity/RemoveLiquidityReviewModal'
+import { ASSETS, WBNB_ADDRESS, findLogoUrl } from '@/lib/contracts'
 import { formatAmount } from '@/lib/format'
 
 // WBNB ditampilin sebagai "BNB" di UI — konsisten sama Swap/Add Liquidity.
 const displaySymbol = (symbol: string) => (symbol === 'WBNB' ? 'BNB' : symbol)
+const shortenAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`
 
 interface PairLiquidityViewProps {
   pairAddress: `0x${string}`
@@ -27,6 +30,14 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false)
 
   const { token0, token1, symbol0, symbol1, userLpBalance, pooled0, pooled1 } = usePairPosition(pairAddress)
+  const { importedTokens } = useImportedTokens()
+
+  const isKnownTokenAddress = (address: `0x${string}` | undefined) => {
+    if (!address) return false
+    if (address.toLowerCase() === WBNB_ADDRESS.toLowerCase()) return true
+    return [...ASSETS, ...importedTokens].some((a) => a.address?.toLowerCase() === address.toLowerCase())
+  }
+  const unknownTokenAddress = !isKnownTokenAddress(token0) ? token0 : !isKnownTokenAddress(token1) ? token1 : undefined
 
   const {
     removePercent,
@@ -55,38 +66,47 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
   }
 
   return (
-    <div className="relative min-h-screen w-full bg-transparent text-white flex flex-col items-center justify-center overflow-hidden font-sans select-none p-4 md:p-[2vw]">
+    <div className="relative min-h-screen w-full bg-transparent text-white flex flex-col items-center justify-center overflow-hidden font-sans select-none px-4 pb-4 pt-[20vw] md:px-[2vw] md:pb-[2vw] md:pt-[8vw]">
 
-      {/* BACK LINK */}
-      <div className="relative z-10 w-full max-w-[420px] md:max-w-none md:w-[32vw] md:min-w-[340px] mt-2 md:mt-0 mb-4 md:mb-[1vw]">
-        <Link
-          href="/liquidity"
-          className="inline-flex items-center gap-1.5 md:gap-[0.4vw] text-gray-400 hover:text-white text-sm md:text-[0.95vw] transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 md:w-[1vw] md:h-[1vw]" />
-          All pools
-        </Link>
+    <div className="relative z-10 w-full max-w-[420px] md:max-w-none md:w-[32vw] md:min-w-[340px] flex items-center justify-between gap-3 mb-6">
+  
+  <div className="flex items-center gap-3 sm:gap-4">
+    
+    <Link
+      href="/liquidity"
+      className="card p-2.5 sm:p-3 rounded-2xl text-gray-300 hover:text-white transition-all duration-200 active:scale-95 shrink-0 flex items-center justify-center group"
+      title="Back to all pools"
+    >
+      <ArrowLeft className="w-5 h-5 sm:w-5 sm:h-5 transition-transform group-hover:-translate-x-0.5" />
+    </Link>
+
+    <div className="flex items-center shrink-0">
+      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 border-2 border-[#0B0E17] flex items-center justify-center overflow-hidden shadow-md z-10">
+        <TokenIcon 
+          symbol={displaySymbol(symbol0)} 
+          imageUrl={findLogoUrl(symbol0, importedTokens)} 
+          className="w-full h-full object-cover p-1" 
+        />
       </div>
-
-      {/* HEADER PAIR */}
-      <div className="relative z-10 w-full max-w-[420px] md:max-w-none md:w-[32vw] md:min-w-[340px] flex items-center gap-3 md:gap-[0.8vw] mb-6 md:mb-[1.5vw]">
-        <div className="flex items-center">
-          <div className="w-9 h-9 md:w-[2.4vw] md:h-[2.4vw] rounded-full bg-white/10 flex items-center justify-center ring-2 ring-[#0B0E17]">
-            <TokenIcon symbol={displaySymbol(symbol0)} className="w-5 h-5 md:w-[1.3vw] md:h-[1.3vw]" />
-          </div>
-          <div className="w-9 h-9 md:w-[2.4vw] md:h-[2.4vw] rounded-full bg-white/10 flex items-center justify-center ring-2 ring-[#0B0E17] -ml-3 md:-ml-[0.8vw]">
-            <TokenIcon symbol={displaySymbol(symbol1)} className="w-5 h-5 md:w-[1.3vw] md:h-[1.3vw]" />
-          </div>
-        </div>
-        <h1 className="text-2xl md:text-[1.8vw] font-[550] tracking-[-0.02em] text-[#E0E0E0]">
-          {displaySymbol(symbol0)}/{displaySymbol(symbol1)}
-        </h1>
+      <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 border-2 border-[#0B0E17] flex items-center justify-center overflow-hidden shadow-md -ml-4 sm:-ml-4.5 z-0">
+        <TokenIcon 
+          symbol={displaySymbol(symbol1)} 
+          imageUrl={findLogoUrl(symbol1, importedTokens)} 
+          className="w-full h-full object-cover p-1" 
+        />
       </div>
+    </div>
 
-      {/* CONTAINER WIDGET */}
+    <h1 className="text-2xl sm:text-2xl font-black tracking-tight text-white uppercase">
+      {displaySymbol(symbol0)}/{displaySymbol(symbol1)}
+    </h1>
+
+  </div>
+
+</div>
+
       <div className="card relative z-10 w-full max-w-[420px] md:max-w-none md:w-[32vw] md:min-w-[340px] rounded-3xl md:rounded-[1.6vw] p-2 md:p-[0.55vw] transition-all duration-300">
 
-        {/* SEGMENTED TAB */}
         <div className="flex gap-1 md:gap-[0.3vw] p-1 md:p-[0.3vw] mb-2 md:mb-[0.4vw]">
           <button
             onClick={() => setTab('add')}
@@ -108,14 +128,21 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
 
         {tab === 'add' ? (
           token0 && token1 ? (
-            <Suspense fallback={null}>
-              <AddLiquidityForm
-                initialTokenAAddress={token0}
-                initialTokenBAddress={token1}
-                locked
-                hideFooterText
-              />
-            </Suspense>
+            unknownTokenAddress ? (
+              <p className="text-gray-400 text-sm md:text-[0.95vw] text-center px-2 md:px-[1vw] py-6 md:py-[2vw] leading-relaxed">
+                This pool contains a token you haven&apos;t imported ({shortenAddress(unknownTokenAddress)}). Import
+                it from the token selector in Swap or Add Liquidity to add liquidity here.
+              </p>
+            ) : (
+              <Suspense fallback={null}>
+                <AddLiquidityForm
+                  initialTokenAAddress={token0}
+                  initialTokenBAddress={token1}
+                  locked
+                  hideFooterText
+                />
+              </Suspense>
+            )
           ) : (
             <p className="text-gray-400 text-sm md:text-[0.95vw] text-center px-2 md:px-[1vw] py-6 md:py-[2vw]">
               Loading pair...
@@ -123,7 +150,6 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
           )
         ) : (
           <>
-            {/* POSISI ANDA */}
             <div className="card rounded-2xl md:rounded-[1.2vw] px-4 md:px-[1.4vw] py-3 md:py-[0.9vw] border border-transparent">
               <span className="text-gray-400 text-xs md:text-[0.95vw] font-medium block mb-2 md:mb-[0.6vw]">
                 Your position
@@ -152,7 +178,6 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
 
             {hasPosition && (
               <>
-                {/* PERSEN AMOUNT */}
                 <div className="card-dark rounded-2xl md:rounded-[1.2vw] px-4 md:px-[1.4vw] py-4 md:py-[1.1vw] mt-1 md:mt-[0.2vw] border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.1)]">
                   <div className="flex items-end justify-between mb-3 md:mb-[0.8vw]">
                     <span className="text-4xl md:text-[3vw] font-bold tracking-tight leading-none text-white">
@@ -184,7 +209,6 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
                   />
                 </div>
 
-                {/* PREVIEW DITERIMA */}
                 <div className="card rounded-2xl md:rounded-[1.2vw] px-4 md:px-[1.4vw] py-3 md:py-[0.9vw] mt-1 md:mt-[0.2vw] border border-transparent">
                   <span className="text-gray-400 text-xs md:text-[0.95vw] font-medium block mb-2 md:mb-[0.6vw]">
                     You will receive
@@ -193,7 +217,7 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 md:gap-[0.5vw]">
                         <div className="w-6 h-6 md:w-[1.6vw] md:h-[1.6vw] rounded-full bg-white/10 flex items-center justify-center">
-                          <TokenIcon symbol={displaySymbol(symbol0)} className="w-3.5 h-3.5 md:w-[1vw] md:h-[1vw]" />
+                          <TokenIcon symbol={displaySymbol(symbol0)} imageUrl={findLogoUrl(symbol0, importedTokens)} className="w-3.5 h-3.5 md:w-[1vw] md:h-[1vw]" />
                         </div>
                         <span className="text-sm md:text-[1vw] font-medium text-white">{displaySymbol(symbol0)}</span>
                       </div>
@@ -202,7 +226,7 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 md:gap-[0.5vw]">
                         <div className="w-6 h-6 md:w-[1.6vw] md:h-[1.6vw] rounded-full bg-white/10 flex items-center justify-center">
-                          <TokenIcon symbol={displaySymbol(symbol1)} className="w-3.5 h-3.5 md:w-[1vw] md:h-[1vw]" />
+                          <TokenIcon symbol={displaySymbol(symbol1)} imageUrl={findLogoUrl(symbol1, importedTokens)} className="w-3.5 h-3.5 md:w-[1vw] md:h-[1vw]" />
                         </div>
                         <span className="text-sm md:text-[1vw] font-medium text-white">{displaySymbol(symbol1)}</span>
                       </div>
@@ -242,7 +266,6 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
         )}
       </div>
 
-      {/* FOOTER TEXT */}
       <p className="relative z-10 text-gray-400 text-xs md:text-[1.1vw] w-full max-w-[360px] md:max-w-[32vw] text-center mt-6 md:mt-[2vw] mb-6 md:mb-[3vw] leading-relaxed tracking-tight font-normal drop-shadow-sm">
         {tab === 'add' ? (
           <>
@@ -262,6 +285,8 @@ export const PairLiquidityView: React.FC<PairLiquidityViewProps> = ({ pairAddres
         sendingLabel={sendingLabel}
         symbol0={symbol0}
         symbol1={symbol1}
+        logoUrl0={findLogoUrl(symbol0, importedTokens)}
+        logoUrl1={findLogoUrl(symbol1, importedTokens)}
         receive0={receive0}
         receive1={receive1}
         hash={hash}

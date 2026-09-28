@@ -278,6 +278,9 @@ export interface Asset {
   symbol: string
   name: string
   address: `0x${string}` | null
+  // Cuma keisi buat token yang di-import user (Phase 4) — hasil lookup CoinGecko by-symbol.
+  // RST/GST/BNB pakai gambar hardcode di TokenIcon.tsx, nggak butuh field ini.
+  logoUrl?: string
 }
 
 export const TEST_TOKENS = [
@@ -287,3 +290,7 @@ export const TEST_TOKENS = [
 
 export const NATIVE_BNB: Asset = { symbol: 'BNB', name: 'BNB', address: null }
 export const ASSETS: Asset[] = [NATIVE_BNB, ...TEST_TOKENS]
+
+
+export const findLogoUrl = (symbol: string, importedTokens: Asset[]): string | undefined =>
+  importedTokens.find((t) => t.symbol.toLowerCase() === symbol.toLowerCase())?.logoUrl

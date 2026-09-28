@@ -61,7 +61,7 @@ export const TokenInputCard: React.FC<TokenInputCardProps> = ({
                 assets={ASSETS}
                 excludeSymbol={excludeSymbol}
                 onSelect={onSelect}
-                trigger={<TokenSelectButton symbol={asset.symbol} />}
+                trigger={<TokenSelectButton symbol={asset.symbol} imageUrl={asset.logoUrl} />}
             />
         </div>
 

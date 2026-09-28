@@ -29,7 +29,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         if (typeof parsed.deadlineMinutes === 'number') setDeadlineMinutes(parsed.deadlineMinutes)
       }
     } catch {
-      // localStorage nggak tersedia/rusak — pakai default, bukan blocking error
+
     }
     setHydrated(true)
   }, [])
@@ -39,7 +39,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ slippageBps, deadlineMinutes }))
     } catch {
-      // ignore — preferensi lokal doang, bukan data kritis
     }
   }, [slippageBps, deadlineMinutes, hydrated])
 

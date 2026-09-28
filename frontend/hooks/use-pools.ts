@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { erc20Abi } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
+import { useAccount, useReadContract, useReadContracts } from 'wagmi'
 import { FACTORY_ADDRESS, factoryAbi, pairAbi } from '@/lib/contracts'
 
 export interface OnChainPool {
@@ -13,10 +13,12 @@ export interface OnChainPool {
   symbol1: string
   reserve0: bigint
   reserve1: bigint
+  userLpBalance: bigint
 }
 
 export function usePools() {
-  // Tahap 1: berapa banyak pair yang tercatat di Factory
+  const { address } = useAccount()
+
   const { data: pairCount, isLoading: isLoadingCount } = useReadContract({
     address: FACTORY_ADDRESS,
     abi: factoryAbi,
@@ -24,7 +26,6 @@ export function usePools() {
   })
   const count = pairCount ? Number(pairCount) : 0
 
-  // Tahap 2: alamat tiap pair
   const { data: pairAddressResults, isLoading: isLoadingAddresses } = useReadContracts({
     contracts: Array.from({ length: count }, (_, i) => ({
       address: FACTORY_ADDRESS,
@@ -43,7 +44,6 @@ export function usePools() {
     [pairAddressResults]
   )
 
-  // Tahap 3: reserve + token0/token1 tiap pair (1 multicall, 3 call per pair)
   const { data: details, isLoading: isLoadingDetails } = useReadContracts({
     contracts: addresses.flatMap((pairAddress) => [
       { address: pairAddress, abi: pairAbi, functionName: 'getReserves' },
@@ -68,7 +68,6 @@ export function usePools() {
     })
   }, [addresses, details])
 
-  // Tahap 4: symbol() tiap token0/token1
   const { data: symbolResults, isLoading: isLoadingSymbols } = useReadContracts({
     contracts: partialPools.flatMap((p) => [
       { address: p.token0, abi: erc20Abi, functionName: 'symbol' },
@@ -77,14 +76,25 @@ export function usePools() {
     query: { enabled: partialPools.length > 0 },
   })
 
+  const { data: lpBalanceResults } = useReadContracts({
+    contracts: addresses.map((pairAddress) => ({
+      address: pairAddress,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: address ? ([address] as const) : undefined,
+    })),
+    query: { enabled: Boolean(address) && addresses.length > 0 },
+  })
+
   const pools: OnChainPool[] = useMemo(
     () =>
       partialPools.map((p, i) => ({
         ...p,
         symbol0: (symbolResults?.[i * 2]?.result as string | undefined) ?? '?',
         symbol1: (symbolResults?.[i * 2 + 1]?.result as string | undefined) ?? '?',
+        userLpBalance: (lpBalanceResults?.[i]?.result as bigint | undefined) ?? BigInt(0),
       })),
-    [partialPools, symbolResults]
+    [partialPools, symbolResults, lpBalanceResults]
   )
 
   return {

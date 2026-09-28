@@ -26,11 +26,10 @@ interface SwapReviewModalProps {
     amountInMax: bigint | undefined
     hash: `0x${string}` | undefined
     onConfirm: () => void
+    routeSymbols?: string[]
 }
 
-// Popup review sebelum swap dikirim — dibuka programatik dari SwapCard saat tombol "Swap" diklik
-// (bukan langsung kirim tx). Fase 'review'/'sending'/'success'/'error' diturunkan dari status swapTx
-// di SwapCard. Dikunci selama 'sending' lewat TxFlowModal.
+
 export const SwapReviewModal: React.FC<SwapReviewModalProps> = ({
     open,
     onOpenChange,
@@ -47,6 +46,7 @@ export const SwapReviewModal: React.FC<SwapReviewModalProps> = ({
     amountInMax,
     hash,
     onConfirm,
+    routeSymbols,
 }) => {
     const title = phase === 'review' ? 'Review Swap' : `Swap ${sellAsset.symbol}`
 
@@ -151,6 +151,7 @@ export const SwapReviewModal: React.FC<SwapReviewModalProps> = ({
                             slippageBps={slippageBps}
                             amountOutMin={amountOutMin}
                             amountInMax={amountInMax}
+                            routeSymbols={routeSymbols}
                         />
                     </div>
 

@@ -14,9 +14,7 @@ import type { TxFlowStatus } from '@/components/shared/TxFlowAnimation'
 import type { Asset } from '@/lib/contracts'
 
 interface AddLiquidityFormProps {
-    // Dipakai kalau di-embed di halaman pair spesifik (/liquidity/[pair]) — token dikunci ke
-    // pair itu (dropdown disembunyikan) dan teks footer soal "pair baru" disembunyikan karena
-    // udah pasti pair-nya ada.
+
     initialTokenAAddress?: string
     initialTokenBAddress?: string
     locked?: boolean
@@ -193,8 +191,8 @@ export const AddLiquidityForm: React.FC<AddLiquidityFormProps> = ({
 
             {!hideFooterText && (
                 <p className="relative z-10 text-gray-400 text-xs md:text-[1vw] w-full max-w-[360px] md:max-w-[32vw] text-center mt-6 md:mt-[1.5vw] leading-relaxed">
-                    If this pair already has liquidity, your amounts are automatically adjusted to match the current price —
-                    the ratio you enter only sets the price for a brand-new pair.
+                    If this pair already has liquidity, your amounts are automatically adjusted to match the current price,
+                    the ratio you enter only sets the price for a brand new pair.
                 </p>
             )}
 

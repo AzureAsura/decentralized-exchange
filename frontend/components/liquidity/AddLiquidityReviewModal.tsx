@@ -25,8 +25,6 @@ interface AddLiquidityReviewModalProps {
     onConfirm: () => void
 }
 
-// Popup review sebelum supply dikirim — sama pola SwapReviewModal. Fase 'review'/'sending'/'success'/'error'
-// diturunkan dari status supplyTx di AddLiquidityForm. Dikunci selama 'sending' lewat TxFlowModal.
 export const AddLiquidityReviewModal: React.FC<AddLiquidityReviewModalProps> = ({
     open,
     onOpenChange,

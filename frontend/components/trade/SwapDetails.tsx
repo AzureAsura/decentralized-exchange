@@ -16,6 +16,7 @@ interface SwapDetailsProps {
     slippageBps: number
     amountOutMin: bigint | undefined
     amountInMax: bigint | undefined
+    routeSymbols?: string[]
 }
 
 export const SwapDetails: React.FC<SwapDetailsProps> = ({
@@ -31,6 +32,7 @@ export const SwapDetails: React.FC<SwapDetailsProps> = ({
     slippageBps,
     amountOutMin,
     amountInMax,
+    routeSymbols,
 }) => (
     <div className={`mt-2 md:mt-[0.5vw] rounded-2xl md:rounded-[1.2vw] card p-3 md:p-[0.8vw] border border-white/5 animate-in fade-in slide-in-from-top-2 duration-200 transition-opacity ${isQuoting ? 'opacity-60' : 'opacity-100'}`}>
         <div
@@ -55,6 +57,7 @@ export const SwapDetails: React.FC<SwapDetailsProps> = ({
                     slippageBps={slippageBps}
                     amountOutMin={amountOutMin}
                     amountInMax={amountInMax}
+                    routeSymbols={routeSymbols}
                 />
             </div>
         )}

@@ -99,7 +99,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({ trigger 
 
   const pendingConnectorId = isPending ? pendingId : undefined
 
-  // DESKTOP DIALOG
   if (isDesktop) {
     return (
       <Dialog open={isOpen} onOpenChange={setOpen}>
@@ -121,7 +120,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({ trigger 
     )
   }
 
-  // MOBILE DRAWER
   return (
     <Drawer open={isOpen} onOpenChange={setOpen}>
       <DrawerTrigger render={trigger as React.ReactElement} />
